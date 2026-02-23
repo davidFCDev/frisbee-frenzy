@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "remix-agent-publish": {
+      "source": "farworld-labs/remix-skills",
+      "sourceType": "github",
+      "computedHash": "4d0c62112b8c3e6408b7f12323afd89b99c13b2c3e43a37fd4f7125172581e41"
+    },
+    "remix-api-key-auth": {
+      "source": "farworld-labs/remix-skills",
+      "sourceType": "github",
+      "computedHash": "49a7fa0163b14faee1deab211890c1ded68917f1f1c114848a37993fc8b4b3c3"
+    }
+  }
+}
