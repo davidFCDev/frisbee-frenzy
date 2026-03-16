@@ -1,41 +1,57 @@
-import { initRemix } from "@insidethesim/remix-dev"
-import { GameScene } from "./scenes/GameScene"
-import GameSettings from "./config/GameSettings"
+import GameSettings from "./config/GameSettings";
+import { run } from "./scenes/GameScene";
+import { runPreloadScene } from "./scenes/PreloadScene";
 
-// SDK mock is automatically initialized by the framework (dev-init.ts)
-
-// Game configuration
-const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.WEBGL,
-  width: GameSettings.canvas.width,
-  height: GameSettings.canvas.height,
-  scale: {
-    mode: Phaser.Scale.FIT,
-    parent: document.body,
-    width: GameSettings.canvas.width,
-    height: GameSettings.canvas.height,
-  },
-  backgroundColor: "#1a1a1a",
-  scene: [GameScene],
-  physics: {
-    default: "arcade",
-  },
-  fps: {
-    target: 60,
-  },
-  pixelArt: false,
-  antialias: true
+// Setup default game config if not provided by platform
+if (!window.gameConfig) {
+  window.gameConfig = { ...GameSettings.defaults };
 }
 
-// Create the game instance
-const game = new Phaser.Game(config)
+// Setup lib mock for development (in production, platform provides the real lib)
+if (!window.lib) {
+  window.lib = {
+    log: (msg: string) => console.log("[Game]", msg),
+    getAsset: () => null,
+    addPlayerScoreToLeaderboard: async () => ({
+      success: false,
+      entries: [],
+      userRank: null,
+    }),
+    getUserGameState: async () => {
+      try {
+        const saved = localStorage.getItem("frisbee-loop-state");
+        return saved ? { state: JSON.parse(saved) } : null;
+      } catch {
+        return null;
+      }
+    },
+    saveUserGameState: async (state: Record<string, unknown>) => {
+      try {
+        localStorage.setItem("frisbee-loop-state", JSON.stringify(state));
+      } catch {
+        // ignore
+      }
+    },
+    showGameParameters: () => {},
+  };
+}
 
-// Store globally for performance monitoring and HMR cleanup
-;(window as any).game = game
+// Preload scene → then start the game
+async function boot(): Promise<void> {
+  const audio = await runPreloadScene();
+  await run("play", audio);
 
-// Initialize Remix framework after game is created
-game.events.once("ready", () => {
-  initRemix(game, {
-    multiplayer: false
-  })
-})
+  // Hide loading screen after game scene is fully initialized and rendering
+  requestAnimationFrame(() => {
+    const loadingScreen = document.getElementById("loading-screen");
+    if (loadingScreen) {
+      loadingScreen.style.transition = "opacity 0.3s ease";
+      loadingScreen.style.opacity = "0";
+      setTimeout(() => {
+        loadingScreen.style.display = "none";
+      }, 300);
+    }
+  });
+}
+
+boot();

@@ -1,0 +1,4159 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Infinity Frisbee</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&family=Bangers&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --transition-fast: 150ms;
+        --transition-normal: 300ms;
+        --ease-out: cubic-bezier(0, 0, 0.2, 1);
+        --space-sm: 16px;
+        --space-md: 24px;
+      }
+
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        touch-action: none;
+        -ms-touch-action: none;
+        font-family: "Inter", sans-serif;
+        background: #1a1a2e;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      #game-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      #game-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* UI Overlay */
+
+      .ui-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .ui-overlay > * {
+        pointer-events: auto;
+      }
+
+      /* Score Display */
+
+      #score-display {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        pointer-events: none;
+        padding: 6px 20px;
+        background: rgba(0, 0, 0, 0.45);
+        border-radius: 22px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      #score-label {
+        display: none;
+      }
+
+      #score-value {
+        font-family: "Bangers", cursive;
+        font-size: 26px;
+        color: white;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        line-height: 1;
+      }
+
+      /* Combo Display */
+
+      #combo-display {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        transform: translateY(-50%) scale(0.8);
+        font-family: "Bangers", cursive;
+        font-size: 32px;
+        color: #ffd54f;
+        -webkit-text-stroke: 1.5px #000000;
+        opacity: 0;
+        transition:
+          opacity var(--transition-fast) var(--ease-out),
+          transform var(--transition-fast) var(--ease-out);
+        pointer-events: none;
+        letter-spacing: 2px;
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 20px;
+      }
+
+      #combo-display.visible {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+      }
+
+      /* Game Over Screen */
+
+      #game-over-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.6) 0%,
+          rgba(0, 0, 0, 0.85) 100%
+        );
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity var(--transition-normal) var(--ease-out);
+      }
+
+      #game-over-screen.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      #game-over-title {
+        font-family: "Bangers", cursive;
+        font-size: 32px;
+        color: #ffd54f;
+        margin-bottom: 20px;
+        -webkit-text-stroke: 2px #000000;
+        letter-spacing: 3px;
+        text-align: center;
+      }
+
+      #final-score {
+        font-family: "Bangers", cursive;
+        font-size: 60px;
+        color: #ffffff;
+        line-height: 1;
+        text-align: center;
+        background: linear-gradient(
+          135deg,
+          #ffd700 0%,
+          #ffa500 50%,
+          #ff1493 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))
+          drop-shadow(0 0 40px rgba(255, 20, 147, 0.6))
+          drop-shadow(0 4px 16px rgba(0, 0, 0, 0.7));
+        letter-spacing: 6px;
+      }
+
+      /* Leaderboard Container */
+
+      #leaderboard-container {
+        margin-top: 32px;
+        margin-bottom: 32px;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 16px;
+        padding: 20px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      #leaderboard-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 28px;
+        color: #ffd54f;
+        text-align: center;
+        margin-bottom: 16px;
+        letter-spacing: 3px;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      }
+
+      #leaderboard-entries {
+        max-height: 400px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #ffd54f rgba(255, 255, 255, 0.1);
+        overflow-x: hidden;
+      }
+
+      #leaderboard-entries::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      #leaderboard-entries::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      #leaderboard-entries::-webkit-scrollbar-thumb {
+        background: #ffd54f;
+        border-radius: 4px;
+      }
+
+      .leaderboard-entry {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin-bottom: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        transition:
+          transform 0.2s ease,
+          background 0.2s ease;
+      }
+
+      .leaderboard-entry:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: none;
+      }
+
+      .leaderboard-entry.current-player {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 215, 0, 0.3) 0%,
+          rgba(255, 140, 0, 0.3) 100%
+        );
+        border: 2px solid #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+      }
+
+      .leaderboard-rank {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 24px;
+        color: #ffd54f;
+        min-width: 40px;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+      }
+
+      .leaderboard-rank.top3 {
+        font-size: 28px;
+        font-weight: bold;
+      }
+
+      .leaderboard-rank.rank1 {
+        color: #ffd700;
+      }
+
+      .leaderboard-rank.rank2 {
+        color: #c0c0c0;
+      }
+
+      .leaderboard-rank.rank3 {
+        color: #cd7f32;
+      }
+
+      .leaderboard-profile {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        object-fit: cover;
+      }
+
+      .leaderboard-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .leaderboard-username {
+        font-family: "Inter", sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .leaderboard-entry.current-player .leaderboard-username {
+        color: #ffd700;
+      }
+
+      .leaderboard-score {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 24px;
+        color: #4caf50;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+        margin-left: 12px;
+      }
+
+      .leaderboard-entry.current-player .leaderboard-score {
+        color: #ffd700;
+      }
+
+      .leaderboard-loading {
+        text-align: center;
+        padding: 20px;
+        font-family: "Inter", sans-serif;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .leaderboard-error {
+        text-align: center;
+        padding: 20px;
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+        color: rgba(255, 100, 100, 0.8);
+      }
+
+      #restart-btn {
+        padding: 0 32px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 22px;
+        letter-spacing: 2px;
+        color: white;
+        background: linear-gradient(135deg, #ffd54f 0%, #ff1493 100%);
+        border: none;
+        border-radius: 60px;
+        cursor: pointer;
+        transition:
+          transform var(--transition-fast) var(--ease-out),
+          box-shadow var(--transition-fast);
+        min-width: 180px;
+        min-height: 60px;
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+      }
+
+      #restart-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 32px rgba(76, 175, 80, 0.5);
+      }
+
+      #restart-btn:active {
+        transform: scale(0.97);
+        box-shadow: 0 4px 16px rgba(76, 175, 80, 0.4);
+      }
+
+      #restart-btn:focus-visible {
+        outline: 3px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 4px;
+      }
+
+      /* Trajectory Line Canvas */
+
+      #trajectory-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      /* Edit Mode Indicator */
+
+      #edit-indicator {
+        position: absolute;
+        top: 28px;
+        right: 24px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        color: white;
+        font-family: "Inter", sans-serif;
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 1px;
+        border-radius: 24px;
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+        display: none;
+      }
+
+      #edit-indicator.visible {
+        display: block;
+      }
+
+      /* Loading Screen */
+
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        transition:
+          opacity 0.5s ease,
+          visibility 0.5s ease;
+      }
+
+      #loading-screen.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      #loading-content {
+        text-align: center;
+        padding: 40px;
+      }
+
+      #loading-title {
+        display: none;
+      }
+
+      @keyframes loadingPulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      #loading-subtitle {
+        font-family: "Inter", sans-serif;
+        font-size: 24px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 40px;
+        letter-spacing: 2px;
+      }
+
+      #loading-bar-container {
+        width: 400px;
+        max-width: 80vw;
+        height: 50px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 12px;
+        overflow: hidden;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        margin: 0 auto 20px;
+      }
+
+      #loading-bar-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          #ff1493 0%,
+          #ffd700 50%,
+          #ff1493 100%
+        );
+        background-size: 200% 100%;
+        animation: loadingGradient 2s linear infinite;
+        transition: width 0.3s ease;
+        box-shadow: 0 0 20px rgba(255, 20, 147, 0.6);
+      }
+
+      @keyframes loadingGradient {
+        0% {
+          background-position: 0% 0%;
+        }
+        100% {
+          background-position: 200% 0%;
+        }
+      }
+
+      #loading-percentage {
+        display: none;
+      }
+
+      /* Best Score */
+
+      #best-score {
+        position: absolute;
+        top: 28px;
+        left: 24px;
+        font-family: "Inter", sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+        pointer-events: none;
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* Tutorial Message */
+
+      #tutorial-message {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: "Bangers", cursive;
+        font-size: 64px;
+        color: #ffffff;
+        -webkit-text-stroke: 3px #000000;
+        text-shadow:
+          0 0 20px rgba(255, 255, 255, 0.8),
+          0 4px 12px rgba(0, 0, 0, 0.6);
+        pointer-events: none;
+        text-align: center;
+        letter-spacing: 4px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease;
+        z-index: 20;
+      }
+
+      #tutorial-message.visible {
+        opacity: 1;
+        visibility: visible;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: translate(-50%, -50%) scale(1);
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.05);
+        }
+      }
+
+      .swipe-indicator {
+        position: absolute;
+        top: 200px;
+        left: 50%;
+        width: 80px;
+        height: 80px;
+        transform: translateX(-50%);
+        opacity: 0.9;
+      }
+
+      .swipe-indicator::before {
+        content: "";
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.9) 0%,
+          rgba(255, 255, 255, 0.5) 70%
+        );
+        border: 4px solid #ff1493;
+        box-shadow:
+          0 0 20px rgba(255, 20, 147, 0.6),
+          0 4px 12px rgba(0, 0, 0, 0.4);
+        animation: swipeMotion 2s ease-in-out infinite;
+      }
+
+      .swipe-indicator::after {
+        content: "↑";
+        position: absolute;
+        font-size: 48px;
+        color: #ff1493;
+        text-shadow:
+          0 0 10px rgba(255, 20, 147, 0.8),
+          0 2px 8px rgba(0, 0, 0, 0.6);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: swipeArrow 2s ease-in-out infinite;
+      }
+
+      @keyframes swipeMotion {
+        0% {
+          top: 0;
+          opacity: 0.3;
+          transform: scale(0.8);
+        }
+        30% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        70% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          top: -80px;
+          opacity: 0.3;
+          transform: scale(0.8);
+        }
+      }
+
+      @keyframes swipeArrow {
+        0%,
+        100% {
+          opacity: 0.5;
+          transform: translate(-50%, -50%) scale(0.8);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+      }
+
+      #best-score::before {
+        content: "🏆";
+        font-size: 18px;
+      }
+
+      #best-value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 24px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      /* Lives Display */
+
+      #lives-display {
+        position: absolute;
+        bottom: 24px;
+        left: 24px;
+        display: flex;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .life-icon {
+        width: 28px;
+        height: 28px;
+        background: radial-gradient(circle, #7c6cff 60%, #6c63ff 100%);
+        border-radius: 50%;
+        border: 2px solid #fff5e4;
+        box-shadow:
+          0 0 0 1px rgba(108, 99, 255, 0.3),
+          0 2px 6px rgba(108, 99, 255, 0.5);
+        transition:
+          opacity 0.3s ease,
+          transform 0.3s ease;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .life-icon::before {
+        content: "★";
+        font-size: 16px;
+        color: #ffffff;
+        text-shadow: 0 0 4px rgba(255, 217, 61, 0.7);
+        line-height: 1;
+        display: block;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      .life-icon.lost {
+        opacity: 0.2;
+        transform: scale(0.7);
+        filter: grayscale(100%);
+      }
+
+      /* Frisbee Selector Button */
+
+      #frisbee-selector-btn {
+        display: none;
+        position: absolute;
+        bottom: 24px;
+        right: 24px;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff1493 0%, #ffd700 100%);
+        border: 3px solid white;
+        box-shadow: 0 4px 12px rgba(255, 20, 147, 0.5);
+        font-size: 32px;
+        cursor: pointer;
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+        z-index: 15;
+      }
+
+      #frisbee-selector-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(255, 20, 147, 0.7);
+      }
+
+      #frisbee-selector-btn:active {
+        transform: scale(0.95);
+      }
+
+      /* Frisbee Overlay */
+
+      #frisbee-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      #frisbee-overlay.visible {
+        display: flex;
+        opacity: 1;
+      }
+
+      #frisbee-selector-panel {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 24px;
+        padding: 32px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(255, 215, 0, 0.3);
+      }
+
+      #frisbee-selector-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+
+      #frisbee-selector-header h2 {
+        font-family: "Bangers", cursive;
+        font-size: 32px;
+        color: #ffd700;
+        margin: 0;
+        letter-spacing: 2px;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      }
+
+      .close-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: rotate(90deg);
+      }
+
+      #frisbee-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+      }
+
+      .frisbee-option {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 3px solid transparent;
+        position: relative;
+      }
+
+      .frisbee-option:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-4px);
+      }
+
+      .frisbee-option.selected {
+        border-color: #ffd700;
+        background: rgba(255, 215, 0, 0.2);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+      }
+
+      .frisbee-option.locked {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .frisbee-option.locked:hover {
+        transform: none;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .frisbee-preview {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 12px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .frisbee-name {
+        font-family: "Inter", sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 4px;
+      }
+
+      .frisbee-unlock {
+        font-family: "Inter", sans-serif;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .lock-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 40px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+      <div id="loading-content"></div>
+    </div>
+
+    <div id="game-container">
+      <canvas id="game-canvas"></canvas>
+      <canvas id="trajectory-canvas"></canvas>
+
+      <div class="ui-overlay">
+        <div id="score-display">
+          <div id="score-label">⭐</div>
+          <div id="score-value">0</div>
+        </div>
+
+        <div id="combo-display">×2 COMBO!</div>
+
+        <div id="tutorial-message">
+          Swipe Up to Throw
+          <div class="swipe-indicator"></div>
+        </div>
+
+        <div id="best-score">Best <span id="best-value">0</span></div>
+
+        <div id="lives-display">
+          <div class="life-icon" id="life-1"></div>
+          <div class="life-icon" id="life-2"></div>
+        </div>
+
+        <button
+          id="frisbee-selector-btn"
+          class="icon-button"
+          title="Change Frisbee"
+        >
+          🥏
+        </button>
+
+        <div id="edit-indicator">EDIT MODE</div>
+
+        <div id="frisbee-overlay">
+          <div id="frisbee-selector-panel">
+            <div id="frisbee-selector-header">
+              <h2>SELECT YOUR FRISBEE</h2>
+              <button id="close-frisbee-selector" class="close-btn">✕</button>
+            </div>
+            <div id="frisbee-options"></div>
+          </div>
+        </div>
+
+        <div id="game-over-screen" style="display: none">
+          <div id="game-over-title"></div>
+          <div id="final-score">0</div>
+          <div id="leaderboard-container">
+            <div id="leaderboard-title"></div>
+            <div id="leaderboard-entries"></div>
+          </div>
+          <button id="restart-btn" style="display: none">PLAY AGAIN</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@latest/dist/index.min.js"></script>
+    <script>
+      /* ==================================================
+       * GAME OVERVIEW: Frisbee Finesse - An endless 3D frisbee throwing game
+       * where players throw a frisbee from base to base, avoiding moving pole
+       * obstacles. Each successful catch increases score and difficulty.
+       *
+       * GAME STATE SHAPE: window.gameConfig = {
+       *   frisbeeColor: '#F44336',
+       *   fieldColor: '#4CAF50',
+       *   poleColor: '#FFEB3B',
+       *   characterColor: '#2196F3',
+       *   startingDifficulty: 1,
+       *   difficultyRampSpeed: 'medium',
+       *   poleSpeedMultiplier: 1.0,
+       *   baseDistance: 28,
+       *   frisbeeSpeedMultiplier: 1.0,
+       *   catchZoneSize: 'medium',
+       *   gravityMultiplier: 1.0
+       * }
+       * ==================================================
+       */
+
+      // Asset cache
+      const assetCache = {
+        images: {},
+        audio: {},
+      };
+
+      // Audio context
+      let audioContext = null;
+      let audioBuffers = {};
+      let musicSource = null;
+      let musicGainNode = null;
+
+      // Frisbee designs with unlock requirements
+      const frisbeeDesigns = [
+        {
+          id: "classic",
+          name: "Classic",
+          unlockScore: 0,
+          baseColor: 0xffffff,
+          rimColor: 0xff1493,
+          starColor: 0xff1493,
+        },
+        {
+          id: "golden",
+          name: "Golden",
+          unlockScore: 10,
+          baseColor: 0xffd700,
+          rimColor: 0xff8c00,
+          starColor: 0xffffff,
+        },
+        {
+          id: "ocean",
+          name: "Ocean",
+          unlockScore: 20,
+          baseColor: 0x00ced1,
+          rimColor: 0x1e90ff,
+          starColor: 0xffffff,
+        },
+        {
+          id: "fire",
+          name: "Fire",
+          unlockScore: 30,
+          baseColor: 0xff4500,
+          rimColor: 0xff0000,
+          starColor: 0xffff00,
+        },
+        {
+          id: "galaxy",
+          name: "Galaxy",
+          unlockScore: 40,
+          baseColor: 0x9370db,
+          rimColor: 0xff00ff,
+          starColor: 0x00ffff,
+        },
+        {
+          id: "rainbow",
+          name: "Rainbow",
+          unlockScore: 50,
+          baseColor: 0xff1493,
+          rimColor: 0x00ff88,
+          starColor: 0xffd700,
+        },
+      ];
+
+      // Current selected frisbee
+      let selectedFrisbeeId = "classic";
+
+      // Three.js globals
+      let scene, camera, renderer;
+      let groundMesh, skyMesh;
+      let throwerSprite, receiverSprite;
+      let frisbeeMesh;
+      let frisbeeTrail = [];
+      let trailMeshes = [];
+      let poles = [];
+      let baseMarkers = [];
+
+      // Fireworks particles
+      let fireworksParticles = [];
+
+      // Shield powerups
+      let powerups = [];
+      let shieldAura = null;
+
+      // Game state
+      let gameState = {
+        phase: "aiming", // aiming, throwing, flying, transitioning, gameover
+        score: 0,
+        bestScore: 0,
+        combo: 1,
+        lives: 3,
+
+        // Positions - floating frisbee as thrower
+        throwerPos: new THREE.Vector3(0, 0, 0),
+        receiverPos: new THREE.Vector3(0, 0, 20),
+        frisbeePos: new THREE.Vector3(0, 2.0, 0),
+        frisbeeVel: new THREE.Vector3(0, 0, 0),
+        frisbeeRotation: 0,
+
+        // Throw input
+        isDragging: false,
+        dragStart: { x: 0, y: 0 },
+        dragCurrent: { x: 0, y: 0 },
+        throwPower: 0,
+        throwAngleH: 0,
+        throwAngleV: 0,
+
+        // Difficulty
+        currentDifficulty: 1,
+        poleCount: 2,
+        poleSpeed: 1,
+        gapWidth: 3.5,
+
+        // Animation
+        transitionProgress: 0,
+        cameraTargetPos: new THREE.Vector3(0, 3, -5),
+
+        // Shield powerup
+        hasShield: false,
+
+        // Throw animation
+        throwAnimProgress: 0,
+        throwAnimDuration: 0.25, // 0.25 seconds throw animation
+      };
+
+      // Base lines (horizontal lines under characters)
+      let baseLines = [];
+
+      // Stadium elements that need to move with the camera
+      let stadiumElements = [];
+
+      // Current mode
+      let currentMode = "play";
+
+      // Preload assets with progress tracking
+      async function preloadAssets() {
+        const imageAssets = [
+          "thrower_character",
+          "receiver_character",
+          "frisbee",
+          "obstacle_pole",
+          "base_marker",
+          "background_stadium",
+        ];
+        const audioAssets = [
+          "throw_sound",
+          "catch_sound",
+          "collision_sound",
+          "background_music",
+        ];
+
+        const totalAssets = imageAssets.length + audioAssets.length;
+        let loadedAssets = 0;
+
+        // Update progress bar
+        function updateProgress() {
+          loadedAssets++;
+          const percentage = Math.round((loadedAssets / totalAssets) * 100);
+          const loadingBarFill = document.getElementById("loading-bar-fill");
+          const loadingPercentage =
+            document.getElementById("loading-percentage");
+
+          if (loadingBarFill) {
+            loadingBarFill.style.width = percentage + "%";
+          }
+          if (loadingPercentage) {
+            loadingPercentage.textContent = percentage + "%";
+          }
+        }
+
+        // Load images
+        const imagePromises = imageAssets.map((id) => {
+          return new Promise((resolve) => {
+            const assetInfo = lib.getAsset(id);
+            if (assetInfo && assetInfo.url) {
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => {
+                assetCache.images[id] = img;
+                updateProgress();
+                resolve();
+              };
+              img.onerror = () => {
+                lib.log("Failed to load image: " + id);
+                updateProgress();
+                resolve();
+              };
+              img.src = assetInfo.url;
+            } else {
+              updateProgress();
+              resolve();
+            }
+          });
+        });
+
+        // Initialize audio context
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        musicGainNode = audioContext.createGain();
+        musicGainNode.connect(audioContext.destination);
+        musicGainNode.gain.value = 0.3;
+
+        // Load audio
+        const audioPromises = audioAssets.map((id) => {
+          return new Promise((resolve) => {
+            const assetInfo = lib.getAsset(id);
+            if (assetInfo && assetInfo.url) {
+              fetch(assetInfo.url)
+                .then((response) => response.arrayBuffer())
+                .then((buffer) => audioContext.decodeAudioData(buffer))
+                .then((audioBuffer) => {
+                  audioBuffers[id] = audioBuffer;
+                  updateProgress();
+                  resolve();
+                })
+                .catch(() => {
+                  lib.log("Failed to load audio: " + id);
+                  updateProgress();
+                  resolve();
+                });
+            } else {
+              updateProgress();
+              resolve();
+            }
+          });
+        });
+
+        await Promise.all([...imagePromises, ...audioPromises]);
+        lib.log("Assets loaded");
+
+        // Wait a moment to show 100% before hiding
+        await new Promise((resolve) => {
+          setTimeout(resolve, 500);
+        });
+
+        // Hide loading screen
+        const loadingScreen = document.getElementById("loading-screen");
+        if (loadingScreen) {
+          loadingScreen.classList.add("hidden");
+        }
+      }
+
+      // Play sound
+      function playSound(id, loop = false, volume = 1.0) {
+        if (!audioContext || !audioBuffers[id]) return null;
+
+        if (audioContext.state === "suspended") {
+          audioContext.resume();
+        }
+
+        const source = audioContext.createBufferSource();
+        const gainNode = audioContext.createGain();
+
+        source.buffer = audioBuffers[id];
+        source.loop = loop;
+        gainNode.gain.value = volume;
+
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        source.start(0);
+
+        return { source, gainNode };
+      }
+
+      // Start background music
+      function startMusic() {
+        if (musicSource) {
+          musicSource.stop();
+        }
+        const result = playSound("background_music", true, 0.3);
+        if (result) {
+          musicSource = result.source;
+        }
+      }
+
+      // Stop music
+      function stopMusic() {
+        if (musicSource) {
+          musicSource.stop();
+          musicSource = null;
+        }
+      }
+
+      // Initialize Three.js scene
+      function initScene() {
+        const canvas = document.getElementById("game-canvas");
+
+        // Scene
+        scene = new THREE.Scene();
+
+        // Create bright cartoon sky with vivid gradient
+        const skyGeometry = new THREE.SphereGeometry(400, 16, 16);
+        const skyMaterial = new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                        vPosition = position;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+          fragmentShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                        // Vertical gradient - vibrant blue sky
+                        float h = normalize(vPosition).y;
+                        
+                        // Much more saturated blue colors for cartoon look
+                        vec3 topColor = vec3(0.2, 0.5, 1.0); // Rich deep blue at zenith
+                        vec3 horizonColor = vec3(0.5, 0.75, 1.0); // Light sky blue at horizon
+                        
+                        // Smooth gradient
+                        float mixFactor = smoothstep(-0.2, 0.8, h);
+                        vec3 skyColor = mix(horizonColor, topColor, mixFactor);
+                        
+                        gl_FragColor = vec4(skyColor, 1.0);
+                    }
+                `,
+        });
+        skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+        skyMesh.userData.isSky = true;
+        scene.add(skyMesh);
+
+        // Add stylized cartoon clouds
+        createCartoonClouds();
+
+        // Less fog, and match sky blue color so it's not washed out
+        scene.fog = new THREE.Fog(0x80bfff, 200, 400);
+
+        // Camera - Tilted view with more depth
+        camera = new THREE.PerspectiveCamera(80, 720 / 1280, 0.1, 1000);
+        camera.position.set(0, 13, -6);
+        camera.lookAt(0, 0, 10);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(720, 1280);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Lighting - Optimized for performance
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        // Reduced shadow map resolution for better performance
+        directionalLight.shadow.mapSize.width = 512; // Reduced from 1024
+        directionalLight.shadow.mapSize.height = 512; // Reduced from 1024
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        // Smaller shadow area for better shadow quality where it matters
+        directionalLight.shadow.camera.left = -15; // Reduced from -20
+        directionalLight.shadow.camera.right = 15; // Reduced from 20
+        directionalLight.shadow.camera.top = 15; // Reduced from 20
+        directionalLight.shadow.camera.bottom = -15; // Reduced from -20
+        scene.add(directionalLight);
+
+        // Ground - wider field with artificial grass texture
+        const fieldColor = new THREE.Color(
+          window.gameConfig.fieldColor || "#4CAF50",
+        );
+
+        // Create artificial grass texture
+        const grassCanvas = document.createElement("canvas");
+        grassCanvas.width = 512;
+        grassCanvas.height = 512;
+        const grassCtx = grassCanvas.getContext("2d");
+
+        // Base grass color
+        grassCtx.fillStyle = window.gameConfig.fieldColor || "#4CAF50";
+        grassCtx.fillRect(0, 0, 512, 512);
+
+        // Add alternating darker stripes for mowed lawn effect
+        const stripeWidth = 64;
+        const numStripes = Math.ceil(512 / stripeWidth);
+
+        for (let i = 0; i < numStripes; i++) {
+          if (i % 2 === 0) {
+            grassCtx.fillStyle = "rgba(0, 0, 0, 0.08)";
+            grassCtx.fillRect(0, i * stripeWidth, 512, stripeWidth);
+          }
+        }
+
+        // Add subtle texture variation for grass blade effect
+        for (let i = 0; i < 3000; i++) {
+          const x = Math.random() * 512;
+          const y = Math.random() * 512;
+          const brightness =
+            Math.random() > 0.5 ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)";
+          grassCtx.fillStyle = brightness;
+          grassCtx.fillRect(x, y, 2, 3);
+        }
+
+        // Create texture from canvas
+        const grassTexture = new THREE.CanvasTexture(grassCanvas);
+        grassTexture.wrapS = THREE.RepeatWrapping;
+        grassTexture.wrapT = THREE.RepeatWrapping;
+        grassTexture.repeat.set(15, 100); // Much more vertical repeat for infinite field
+
+        // Make ground MUCH longer to accommodate infinite progression
+        const groundGeometry = new THREE.PlaneGeometry(360, 10000);
+        const groundMaterial = new THREE.MeshLambertMaterial({
+          map: grassTexture,
+        });
+        groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = 0;
+        groundMesh.position.z = 10;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // Stadium background
+        createStadiumBackground();
+
+        // Create game objects
+        createCharacters();
+        createFrisbee();
+        createBaseMarkers();
+        generateObstacles();
+        generatePowerups();
+      }
+
+      // Create cartoon clouds in the sky
+      // Create cartoon clouds in the sky
+      function createCartoonClouds() {
+        const cloudColors = [0xffffff, 0xf0f8ff, 0xe6f2ff];
+
+        // Reduced cloud count from 20 to 12 for better performance
+        // Shared materials for clouds
+        const cloudMaterials = cloudColors.map(
+          (color) =>
+            new THREE.MeshBasicMaterial({
+              color: color,
+              transparent: true,
+              opacity: 0.95,
+              fog: false,
+            }),
+        );
+
+        // Reusable geometry with reduced segments
+        const puffGeometries = [
+          new THREE.SphereGeometry(5, 8, 8),
+          new THREE.SphereGeometry(6, 8, 8),
+          new THREE.SphereGeometry(7, 8, 8),
+          new THREE.SphereGeometry(8, 8, 8),
+        ];
+
+        for (let i = 0; i < 12; i++) {
+          // Reduced from 20 to 12
+          const cloudGroup = new THREE.Group();
+
+          const numPuffs = 4 + Math.floor(Math.random() * 3);
+          const cloudMaterial =
+            cloudMaterials[Math.floor(Math.random() * cloudMaterials.length)];
+
+          for (let j = 0; j < numPuffs; j++) {
+            // Reuse geometries
+            const puffGeometry =
+              puffGeometries[Math.floor(Math.random() * puffGeometries.length)];
+            const puff = new THREE.Mesh(puffGeometry, cloudMaterial);
+
+            puff.position.x = (j - numPuffs / 2) * 4;
+            puff.position.y = Math.sin(j) * 2.5;
+            puff.position.z = (Math.random() - 0.5) * 3;
+
+            cloudGroup.add(puff);
+          }
+
+          // Position clouds - adjusted for fewer clouds
+          const row = Math.floor(i / 4);
+          const col = i % 4;
+
+          cloudGroup.position.x = (col - 1.5) * 40;
+          cloudGroup.position.y = 50 + Math.random() * 30;
+          cloudGroup.position.z = row * 50 + Math.random() * 20;
+
+          cloudGroup.rotation.y = Math.random() * Math.PI * 2;
+
+          cloudGroup.userData.isCloud = true;
+          cloudGroup.userData.baseZOffset = cloudGroup.position.z - 10; // Store relative offset
+          scene.add(cloudGroup);
+          stadiumElements.push(cloudGroup); // Add to stadium elements so it moves with player
+        }
+      }
+
+      // Create field markings (soccer/rugby style)
+      function createFieldMarkings() {
+        const lineColor = 0xffffff;
+        const lineMaterial = new THREE.MeshBasicMaterial({ color: lineColor });
+
+        // Helper function to create a line
+        function createLine(width, length, x, z, rotation = 0) {
+          const geometry = new THREE.PlaneGeometry(width, length);
+          const line = new THREE.Mesh(geometry, lineMaterial);
+          line.rotation.x = -Math.PI / 2;
+          line.position.set(x, 0.02, z);
+          if (rotation !== 0) {
+            line.rotation.z = rotation;
+          }
+          line.userData.isStructure = true; // Mark as structure for movement
+          scene.add(line);
+          stadiumElements.push(line); // Add to stadium elements so it moves with player
+          return line;
+        }
+
+        // Side lines - make them VERY long to accommodate infinite progression
+        // Length of 10000 should be enough for any reasonable game session
+        createLine(0.15, 10000, -12, 10);
+        createLine(0.15, 10000, 12, 10);
+      }
+
+      // Create a simple low-poly tree
+      function createLowPolyTree(x, y, z, scale = 1) {
+        const treeGroup = new THREE.Group();
+
+        // Shared materials for performance
+        const trunkMaterial = new THREE.MeshLambertMaterial({
+          color: 0x6b4423,
+        });
+        const foliageMaterial = new THREE.MeshLambertMaterial({
+          color: 0x2e7d32,
+          emissive: 0x1b5e20,
+          emissiveIntensity: 0.1,
+        });
+
+        // Reusable geometries with reduced segments
+        const trunkGeometry = new THREE.CylinderGeometry(
+          0.4 * scale,
+          0.5 * scale,
+          4 * scale,
+          6,
+        );
+        const foliageGeometry = new THREE.ConeGeometry(
+          2.5 * scale,
+          5 * scale,
+          6,
+        );
+
+        // Trunk
+        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+        trunk.position.y = 2 * scale;
+        trunk.castShadow = false; // Disable shadows for performance
+        treeGroup.add(trunk);
+
+        // Foliage layers - reuse same geometry
+        const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        foliage.position.y = 5.5 * scale;
+        foliage.castShadow = false;
+        treeGroup.add(foliage);
+
+        const foliage2 = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        foliage2.position.y = 7.5 * scale;
+        foliage2.scale.set(0.7, 0.7, 0.7);
+        foliage2.castShadow = false;
+        treeGroup.add(foliage2);
+
+        const foliage3 = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        foliage3.position.y = 9 * scale;
+        foliage3.scale.set(0.5, 0.5, 0.5);
+        foliage3.castShadow = false;
+        treeGroup.add(foliage3);
+
+        treeGroup.position.set(x, y, z);
+        treeGroup.userData.isStructure = true;
+        treeGroup.userData.baseZOffset = z - 10;
+
+        return treeGroup;
+      }
+
+      // Create stadium background with stands and crowd
+      // Create stadium background with stands and crowd
+      // Create stadium background with stands and crowd
+      function createStadiumBackground() {
+        // Clear existing stadium elements
+        stadiumElements.forEach((el) => scene.remove(el));
+        stadiumElements = [];
+
+        // Shared materials for performance
+        const bleacherMaterial = new THREE.MeshLambertMaterial({
+          color: 0xcccccc,
+        });
+        const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+        const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+        const poleMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const headMaterial = new THREE.MeshLambertMaterial({
+          color: 0xffdbac,
+          emissive: 0xffdbac,
+          emissiveIntensity: 0.1,
+        });
+
+        // Reusable geometries
+        const bleacherGeometry = new THREE.BoxGeometry(1.2, 0.6, 400);
+        const bodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.6);
+        const headGeometry = new THREE.SphereGeometry(0.35, 6, 6); // Reduced segments for performance
+
+        // Stadium bleacher design with tiered rows
+        const standDistance = 14;
+        const numRows = 12;
+        const rowHeight = 0.6;
+        const rowWidth = 400;
+
+        // Create tiered bleachers on both sides
+        for (let side = 0; side < 2; side++) {
+          const xSign = side === 0 ? -1 : 1;
+
+          for (let row = 0; row < numRows; row++) {
+            const rowX = xSign * (standDistance + row * 0.5);
+            const rowY = row * rowHeight;
+            const rowZ = 10;
+
+            // Create bleacher row platform with shared material
+            const bleacher = new THREE.Mesh(bleacherGeometry, bleacherMaterial);
+            bleacher.position.set(rowX, rowY, rowZ);
+            bleacher.userData.isStructure = true;
+            scene.add(bleacher);
+            stadiumElements.push(bleacher);
+
+            // Add people sitting on this row - REDUCED DENSITY for performance
+            const peoplePerRow = 18; // Reduced from 30 to 18
+            const spacing = rowWidth / peoplePerRow;
+
+            // Shirt colors array (reuse)
+            const shirtColors = [
+              0xff0000, 0x0000ff, 0xffff00, 0x00ff00, 0xff00ff, 0x00ffff,
+              0xff8800, 0x8800ff, 0xffffff, 0xff69b4, 0xff1493, 0x32cd32,
+              0x1e90ff, 0xffd700, 0xff4500,
+            ];
+
+            // Pre-create shirt materials to reuse
+            const shirtMaterials = shirtColors.map(
+              (color) =>
+                new THREE.MeshLambertMaterial({
+                  color: color,
+                  emissive: color,
+                  emissiveIntensity: 0.2,
+                }),
+            );
+
+            for (let p = 0; p < peoplePerRow; p++) {
+              // Randomly skip some positions to create gaps (30% chance - increased from 20%)
+              if (Math.random() < 0.3) continue;
+
+              const personZ =
+                -50 + p * spacing + (Math.random() - 0.5) * spacing * 0.6;
+              const xOffset = (Math.random() - 0.5) * 0.4;
+              const personX = rowX + xOffset;
+              const yOffset = (Math.random() - 0.5) * 0.15;
+              const personY = rowY + rowHeight / 2 + yOffset;
+
+              // Random shirt color - reuse material
+              const shirtMaterial =
+                shirtMaterials[
+                  Math.floor(Math.random() * shirtMaterials.length)
+                ];
+
+              const sizeVariation = 0.9 + Math.random() * 0.2;
+
+              // Person body - reuse geometry, shared material
+              const body = new THREE.Mesh(bodyGeometry, shirtMaterial);
+              body.scale.set(sizeVariation, sizeVariation, sizeVariation);
+              body.position.set(
+                personX,
+                personY + 0.7 * sizeVariation,
+                personZ,
+              );
+              body.userData.isStructure = true;
+              body.userData.baseZOffset = personZ - rowZ;
+              body.castShadow = false; // Disable shadows for performance
+              scene.add(body);
+              stadiumElements.push(body);
+
+              // Person head - reuse geometry and material
+              const head = new THREE.Mesh(headGeometry, headMaterial);
+              head.scale.set(sizeVariation, sizeVariation, sizeVariation);
+              head.position.set(
+                personX,
+                personY + 1.5 * sizeVariation,
+                personZ,
+              );
+              head.userData.isStructure = true;
+              head.userData.baseZOffset = personZ - rowZ;
+              head.castShadow = false; // Disable shadows for performance
+              scene.add(head);
+              stadiumElements.push(head);
+            }
+          }
+
+          // Add back wall behind bleachers
+          const wallGeometry = new THREE.BoxGeometry(
+            0.3,
+            numRows * rowHeight + 2,
+            rowWidth,
+          );
+          const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+          wall.position.set(
+            xSign * (standDistance + numRows * 0.5 + 1),
+            (numRows * rowHeight) / 2,
+            10,
+          );
+          wall.userData.isStructure = true;
+          wall.castShadow = false;
+          scene.add(wall);
+          stadiumElements.push(wall);
+
+          // Add stadium roof
+          const roofGeometry = new THREE.BoxGeometry(2, 0.3, rowWidth);
+          const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+          roof.position.set(
+            xSign * (standDistance + numRows * 0.5),
+            numRows * rowHeight + 2,
+            10,
+          );
+          roof.userData.isStructure = true;
+          roof.castShadow = false;
+          scene.add(roof);
+          stadiumElements.push(roof);
+        }
+
+        // Add decorative flags on poles - REDUCED for performance
+        const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 6); // Reduced segments
+        const flagGeometry = new THREE.BoxGeometry(0.05, 0.8, 1.2);
+        const flagColors = [0xff0000, 0x0000ff, 0xffff00, 0x00ff00];
+        const flagMaterials = flagColors.map(
+          (color) => new THREE.MeshLambertMaterial({ color }),
+        );
+
+        for (let i = 0; i < 4; i++) {
+          // Reduced from 6 to 4
+          const flagZ = -40 + i * 30; // Adjusted spacing
+          const flagMaterial = flagMaterials[i % flagMaterials.length];
+
+          for (let side = 0; side < 2; side++) {
+            const xSign = side === 0 ? -1 : 1;
+            const flagX = xSign * (standDistance + numRows * 0.5 + 1.5);
+
+            // Flag pole - reuse geometry
+            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+            pole.position.set(flagX, numRows * rowHeight + 3.5, flagZ);
+            pole.userData.isStructure = true;
+            pole.userData.baseZOffset = flagZ - 10;
+            pole.castShadow = false;
+            scene.add(pole);
+            stadiumElements.push(pole);
+
+            // Flag - reuse geometry
+            const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+            flag.position.set(
+              flagX + xSign * 0.5,
+              numRows * rowHeight + 4.5,
+              flagZ,
+            );
+            flag.userData.isStructure = true;
+            flag.userData.baseZOffset = flagZ - 10;
+            flag.castShadow = false;
+            scene.add(flag);
+            stadiumElements.push(flag);
+          }
+        }
+
+        // Add low-poly trees ABOVE the bleachers - REDUCED COUNT
+        const treeX = standDistance + numRows * 0.5 + 0.5;
+        const roofHeight = numRows * rowHeight + 2;
+        const treeBaseY = roofHeight - 2;
+        const treesPerSide = 15; // Reduced from 25 to 15
+        const treeSpacing = rowWidth / treesPerSide;
+
+        for (let i = 0; i < treesPerSide; i++) {
+          const treeZ = -50 + i * treeSpacing;
+          const randomScale = 0.8 + Math.random() * 0.4;
+          const randomOffset = (Math.random() - 0.5) * 1;
+
+          // Trees on left side
+          const leftTree = createLowPolyTree(
+            -treeX + randomOffset,
+            treeBaseY,
+            treeZ,
+            randomScale,
+          );
+          scene.add(leftTree);
+          stadiumElements.push(leftTree);
+
+          // Trees on right side
+          const rightTree = createLowPolyTree(
+            treeX + randomOffset,
+            treeBaseY,
+            treeZ,
+            randomScale,
+          );
+          scene.add(rightTree);
+          stadiumElements.push(rightTree);
+        }
+
+        // Add field markings
+        createFieldMarkings();
+      }
+
+      // Create character sprites
+      // Create character sprites
+      // Create thrower (floating frisbee) and receiver (pole with flag)
+      function createCharacters() {
+        // THROWER: Floating Frisbee with glow
+        const throwerGroup = new THREE.Group();
+
+        // Main disc — vibrant purple
+        const discGeometry = new THREE.CylinderGeometry(0.95, 0.95, 0.1, 32);
+        const discMaterial = new THREE.MeshLambertMaterial({
+          color: 0x6c63ff,
+          emissive: 0x6c63ff,
+          emissiveIntensity: 0.15,
+        });
+        const disc = new THREE.Mesh(discGeometry, discMaterial);
+        disc.castShadow = true;
+        throwerGroup.add(disc);
+
+        // Outer rim — creamy white
+        const rimGeometry = new THREE.TorusGeometry(0.89, 0.06, 12, 32);
+        const rimMaterial = new THREE.MeshLambertMaterial({
+          color: 0xfff5e4,
+          emissive: 0xfff5e4,
+          emissiveIntensity: 0.2,
+        });
+        const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+        rim.rotation.x = Math.PI / 2;
+        throwerGroup.add(rim);
+
+        // Star decal — simple cartoon canvas texture
+        var texC = document.createElement("canvas");
+        texC.width = 256;
+        texC.height = 256;
+        var tx = texC.getContext("2d");
+        var cx = 128,
+          cy = 128;
+        // Solid purple background
+        tx.beginPath();
+        tx.arc(cx, cy, 126, 0, Math.PI * 2);
+        tx.fillStyle = "#6C63FF";
+        tx.fill();
+        // Yellow ring border
+        tx.beginPath();
+        tx.arc(cx, cy, 110, 0, Math.PI * 2);
+        tx.strokeStyle = "#FFD93D";
+        tx.lineWidth = 6;
+        tx.stroke();
+        // Bold white 5-point star
+        tx.beginPath();
+        for (var i = 0; i < 5; i++) {
+          var outerAngle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+          var innerAngle = outerAngle + Math.PI / 5;
+          var ox = cx + Math.cos(outerAngle) * 55;
+          var oy = cy + Math.sin(outerAngle) * 55;
+          var ix = cx + Math.cos(innerAngle) * 22;
+          var iy = cy + Math.sin(innerAngle) * 22;
+          if (i === 0) tx.moveTo(ox, oy);
+          else tx.lineTo(ox, oy);
+          tx.lineTo(ix, iy);
+        }
+        tx.closePath();
+        tx.fillStyle = "#FFFFFF";
+        tx.fill();
+        tx.strokeStyle = "#FFD93D";
+        tx.lineWidth = 3;
+        tx.stroke();
+
+        var decalTex = new THREE.CanvasTexture(texC);
+        var decalGeo = new THREE.CircleGeometry(0.68, 32);
+        var decalMat = new THREE.MeshBasicMaterial({
+          map: decalTex,
+          transparent: true,
+          depthWrite: false,
+        });
+        var decal = new THREE.Mesh(decalGeo, decalMat);
+        decal.rotation.x = -Math.PI / 2;
+        decal.position.y = 0.06;
+        throwerGroup.add(decal);
+
+        // Soft glow ring — purple
+        const glowGeometry = new THREE.TorusGeometry(1.06, 0.08, 8, 24);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0x6c63ff,
+          transparent: true,
+          opacity: 0.2,
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.rotation.x = Math.PI / 2;
+        throwerGroup.add(glow);
+
+        // Store glow for animation
+        throwerGroup.userData.glow = glow;
+        throwerGroup.userData.baseY = 2.0; // Base hover height
+
+        // Add shadow below frisbee
+        const shadowGeometry = new THREE.CircleGeometry(1.2, 16);
+        const shadowMaterial = new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: 0.3,
+          depthWrite: false,
+        });
+        const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+        shadow.rotation.x = -Math.PI / 2;
+        shadow.position.y = 0.01;
+        shadow.position.z = -0.1;
+        throwerGroup.add(shadow);
+        throwerGroup.userData.shadow = shadow;
+
+        throwerGroup.position.set(
+          gameState.throwerPos.x,
+          2.0,
+          gameState.throwerPos.z,
+        );
+        scene.add(throwerGroup);
+        throwerSprite = throwerGroup;
+
+        // RECEIVER: Pole with waving flag
+        const receiverGroup = new THREE.Group();
+
+        // Pole - white
+        const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4, 8);
+        const poleMaterial = new THREE.MeshLambertMaterial({
+          color: 0xffffff,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.1,
+        });
+        const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+        pole.position.y = 2;
+        pole.castShadow = true;
+        receiverGroup.add(pole);
+
+        // Flag - rectangular cloth with more segments for better waving
+        const flagWidth = 1.5;
+        const flagHeight = 1.0;
+        const flagGeometry = new THREE.PlaneGeometry(
+          flagWidth,
+          flagHeight,
+          16,
+          10,
+        ); // More segments for realistic wave
+        const flagMaterial = new THREE.MeshLambertMaterial({
+          color: 0xff1493,
+          emissive: 0xff1493,
+          emissiveIntensity: 0.3,
+          side: THREE.DoubleSide,
+        });
+        const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+        flag.position.set(flagWidth / 2, 4, 0);
+        flag.castShadow = true;
+        receiverGroup.add(flag);
+
+        // Store flag data for animation
+        receiverGroup.userData.flag = flag;
+        receiverGroup.userData.flagGeometry = flagGeometry;
+        receiverGroup.userData.flagOriginalPositions = [];
+
+        // Store original positions for realistic physics
+        const positions = flagGeometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          receiverGroup.userData.flagOriginalPositions.push({
+            x: positions.getX(i),
+            y: positions.getY(i),
+            z: positions.getZ(i),
+          });
+        }
+
+        receiverGroup.position.copy(gameState.receiverPos);
+        scene.add(receiverGroup);
+        receiverSprite = receiverGroup;
+      }
+
+      // Create frisbee
+      // Create frisbee
+      function createFrisbee() {
+        const frisbeeGroup = new THREE.Group();
+
+        // Main disc — vibrant purple
+        const discGeometry = new THREE.CylinderGeometry(0.95, 0.95, 0.1, 32);
+        const discMaterial = new THREE.MeshLambertMaterial({
+          color: 0x6c63ff,
+          emissive: 0x6c63ff,
+          emissiveIntensity: 0.15,
+        });
+        const disc = new THREE.Mesh(discGeometry, discMaterial);
+        disc.castShadow = true;
+        frisbeeGroup.add(disc);
+
+        // Outer rim — creamy white
+        const rimGeometry = new THREE.TorusGeometry(0.89, 0.06, 12, 32);
+        const rimMaterial = new THREE.MeshLambertMaterial({
+          color: 0xfff5e4,
+          emissive: 0xfff5e4,
+          emissiveIntensity: 0.2,
+        });
+        const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+        rim.rotation.x = Math.PI / 2;
+        frisbeeGroup.add(rim);
+
+        // Star decal — simple cartoon canvas texture
+        var texC = document.createElement("canvas");
+        texC.width = 256;
+        texC.height = 256;
+        var tx = texC.getContext("2d");
+        var cx = 128,
+          cy = 128;
+        // Solid purple background
+        tx.beginPath();
+        tx.arc(cx, cy, 126, 0, Math.PI * 2);
+        tx.fillStyle = "#6C63FF";
+        tx.fill();
+        // Yellow ring border
+        tx.beginPath();
+        tx.arc(cx, cy, 110, 0, Math.PI * 2);
+        tx.strokeStyle = "#FFD93D";
+        tx.lineWidth = 6;
+        tx.stroke();
+        // Bold white 5-point star
+        tx.beginPath();
+        for (var i = 0; i < 5; i++) {
+          var outerAngle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+          var innerAngle = outerAngle + Math.PI / 5;
+          var ox = cx + Math.cos(outerAngle) * 55;
+          var oy = cy + Math.sin(outerAngle) * 55;
+          var ix = cx + Math.cos(innerAngle) * 22;
+          var iy = cy + Math.sin(innerAngle) * 22;
+          if (i === 0) tx.moveTo(ox, oy);
+          else tx.lineTo(ox, oy);
+          tx.lineTo(ix, iy);
+        }
+        tx.closePath();
+        tx.fillStyle = "#FFFFFF";
+        tx.fill();
+        tx.strokeStyle = "#FFD93D";
+        tx.lineWidth = 3;
+        tx.stroke();
+
+        var decalTex = new THREE.CanvasTexture(texC);
+        var decalGeo = new THREE.CircleGeometry(0.68, 32);
+        var decalMat = new THREE.MeshBasicMaterial({
+          map: decalTex,
+          transparent: true,
+          depthWrite: false,
+        });
+        var decal = new THREE.Mesh(decalGeo, decalMat);
+        decal.rotation.x = -Math.PI / 2;
+        decal.position.y = 0.06;
+        frisbeeGroup.add(decal);
+
+        frisbeeGroup.position.copy(gameState.frisbeePos);
+
+        // Set high render order so frisbee renders AFTER (on top of) trail
+        frisbeeGroup.renderOrder = 100;
+
+        // Enable depth write for frisbee so it properly occludes trail
+        frisbeeGroup.traverse((child) => {
+          if (child.material) {
+            child.material.depthWrite = true;
+          }
+        });
+
+        scene.add(frisbeeGroup);
+        frisbeeMesh = frisbeeGroup;
+      }
+
+      // Create trail effect
+      // Create smooth ribbon trail effect
+      // Create smooth ribbon trail effect
+      function updateTrail() {
+        // ONLY create trail during flying phase, never during transition
+        if (gameState.phase !== "flying") {
+          // Hide all trail meshes during non-flying phases
+          trailMeshes.forEach((mesh) => {
+            if (mesh && mesh.visible !== undefined) {
+              mesh.visible = false;
+            }
+          });
+          return;
+        }
+
+        // Add trail points with MORE distance so trail doesn't overlap frisbee
+        const minDistanceForTrail = 0.35;
+        let shouldAddSegment = false;
+
+        if (frisbeeTrail.length === 0) {
+          shouldAddSegment = true;
+        } else {
+          const lastSegment = frisbeeTrail[frisbeeTrail.length - 1];
+          const distanceMoved = gameState.frisbeePos.distanceTo(
+            lastSegment.position,
+          );
+          shouldAddSegment = distanceMoved >= minDistanceForTrail;
+        }
+
+        if (shouldAddSegment) {
+          frisbeeTrail.push({
+            position: gameState.frisbeePos.clone(),
+            rotation: gameState.frisbeeRotation,
+            age: 0,
+          });
+        }
+
+        // Optimized trail length for better performance
+        const maxTrailLength = 35; // Reduced from 45 to 35 for performance
+        if (frisbeeTrail.length > maxTrailLength) {
+          frisbeeTrail.shift();
+        }
+
+        // Much slower fade for longer persistence
+        frisbeeTrail.forEach((segment) => {
+          segment.age += 0.035;
+        });
+
+        // Update trail meshes
+        updateTrailMeshes();
+      }
+
+      // Update trail mesh visuals
+      // Update trail mesh visuals with smooth ribbon
+      // Update trail mesh visuals with smooth ribbon using object pooling
+      function updateTrailMeshes() {
+        if (frisbeeTrail.length < 2) {
+          trailMeshes.forEach((mesh) => {
+            if (mesh && mesh.visible !== undefined) {
+              mesh.visible = false;
+            }
+          });
+          return;
+        }
+
+        // Gradient colors for trail
+        const gradientColors = [
+          new THREE.Color(0xff00ff),
+          new THREE.Color(0xff0080),
+          new THREE.Color(0xff4500),
+          new THREE.Color(0xffd700),
+          new THREE.Color(0x00ff88),
+          new THREE.Color(0x00ffff),
+          new THREE.Color(0x0088ff),
+        ];
+
+        // Reusable geometry for all trail particles
+        const particleGeometry = new THREE.SphereGeometry(1, 8, 8); // Reduced segments from 12 to 8
+
+        for (let i = 0; i < frisbeeTrail.length; i++) {
+          const segment = frisbeeTrail[i];
+          if (!segment) continue;
+
+          const alpha = 1 - segment.age;
+          if (alpha <= 0) continue;
+          if (i === frisbeeTrail.length - 1) continue;
+
+          // Color calculation
+          const t = i / Math.max(1, frisbeeTrail.length - 1);
+          const colorIndex = t * (gradientColors.length - 1);
+          const lowerIdx = Math.floor(colorIndex);
+          const upperIdx = Math.min(lowerIdx + 1, gradientColors.length - 1);
+          const mixT = colorIndex - lowerIdx;
+
+          const particleColor = new THREE.Color();
+          if (gradientColors[lowerIdx] && gradientColors[upperIdx]) {
+            particleColor.lerpColors(
+              gradientColors[lowerIdx],
+              gradientColors[upperIdx],
+              mixT,
+            );
+          } else {
+            particleColor.copy(gradientColors[0]);
+          }
+
+          const sizeMultiplier = Math.min(1, segment.age * 5);
+
+          // Reuse existing mesh or create new one
+          let particle;
+          if (i < trailMeshes.length && trailMeshes[i]) {
+            particle = trailMeshes[i];
+            if (particle && particle.material) {
+              particle.visible = true;
+              const particleSize = 0.55 * alpha * sizeMultiplier;
+              particle.scale.set(particleSize, particleSize, particleSize);
+              if (particle.material.color) {
+                particle.material.color.copy(particleColor);
+              }
+              if (particle.material.emissive) {
+                particle.material.emissive.copy(particleColor);
+              }
+              particle.material.opacity = alpha * 0.95;
+              if (particle.position) {
+                particle.position.copy(segment.position);
+              }
+            }
+          } else {
+            // Create new mesh with shared geometry
+            const particleMaterial = new THREE.MeshBasicMaterial({
+              color: particleColor,
+              transparent: true,
+              opacity: alpha * 0.95,
+              emissive: particleColor,
+              emissiveIntensity: 0.7,
+              depthWrite: false,
+            });
+
+            particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.renderOrder = -1;
+            scene.add(particle);
+            trailMeshes.push(particle);
+
+            const particleSize = 0.55 * alpha * sizeMultiplier;
+            particle.scale.set(particleSize, particleSize, particleSize);
+            particle.position.copy(segment.position);
+          }
+        }
+
+        // Hide unused trail meshes
+        for (let i = frisbeeTrail.length; i < trailMeshes.length; i++) {
+          if (trailMeshes[i]) {
+            trailMeshes[i].visible = false;
+          }
+        }
+      }
+
+      // Clear trail
+      // Clear trail
+      function clearTrail() {
+        frisbeeTrail = [];
+        // Don't destroy meshes, just hide them for reuse
+        trailMeshes.forEach((mesh) => (mesh.visible = false));
+      }
+
+      // Spawn fireworks at a position
+      function spawnFireworks(position) {
+        const numParticles = 40; // Number of particles in the burst
+        const colors = [
+          0xff1493, // Hot pink
+          0xffd700, // Gold
+          0x00ffff, // Cyan
+          0xff69b4, // Light pink
+          0xffff00, // Yellow
+          0xff00ff, // Magenta
+          0x00ff88, // Green-cyan
+          0xff8800, // Orange
+        ];
+
+        for (let i = 0; i < numParticles; i++) {
+          // Random direction in 3D space
+          const theta = Math.random() * Math.PI * 2; // Horizontal angle
+          const phi = Math.random() * Math.PI; // Vertical angle
+          const speed = 8 + Math.random() * 6; // Random speed
+
+          const velocity = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta) * speed,
+            Math.sin(phi) * Math.sin(theta) * speed,
+            Math.cos(phi) * speed,
+          );
+
+          // Random color from palette
+          const color = colors[Math.floor(Math.random() * colors.length)];
+
+          // Create particle mesh
+          const particleGeometry = new THREE.SphereGeometry(0.15, 6, 6);
+          const particleMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 1.0,
+            emissive: color,
+            emissiveIntensity: 0.8,
+          });
+          const particleMesh = new THREE.Mesh(
+            particleGeometry,
+            particleMaterial,
+          );
+          particleMesh.position.copy(position);
+          scene.add(particleMesh);
+
+          fireworksParticles.push({
+            mesh: particleMesh,
+            velocity: velocity,
+            lifetime: 0,
+            maxLifetime: 1.5 + Math.random() * 0.5, // Particles live 1.5-2 seconds
+            initialColor: color,
+            trail: [], // Trail positions for spark effect
+          });
+        }
+      }
+
+      // Spawn destruction particles when obstacle is destroyed
+      function spawnDestructionParticles(position) {
+        const numParticles = 30; // Explosion particle count
+        const colors = [
+          0xff1493, // Deep Pink (obstacle color)
+          0xffd700, // Gold (base color)
+          0xff8c00, // Dark orange
+          0xff6347, // Tomato red
+          0xffffff, // White flashes
+        ];
+
+        for (let i = 0; i < numParticles; i++) {
+          // Random direction in 3D space - more horizontal spread for destruction
+          const theta = Math.random() * Math.PI * 2; // Horizontal angle
+          const phi = Math.PI / 2 + ((Math.random() - 0.5) * Math.PI) / 2; // More horizontal
+          const speed = 6 + Math.random() * 8; // Explosive speed
+
+          const velocity = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta) * speed,
+            Math.sin(phi) * Math.sin(theta) * speed,
+            Math.cos(phi) * speed,
+          );
+
+          // Random color from palette
+          const color = colors[Math.floor(Math.random() * colors.length)];
+
+          // Varied particle sizes for more dynamic effect
+          const particleSize = 0.12 + Math.random() * 0.15;
+          const particleGeometry = new THREE.SphereGeometry(particleSize, 6, 6);
+          const particleMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 1.0,
+            emissive: color,
+            emissiveIntensity: 1.0, // Brighter for explosion
+          });
+          const particleMesh = new THREE.Mesh(
+            particleGeometry,
+            particleMaterial,
+          );
+          particleMesh.position.copy(position);
+          scene.add(particleMesh);
+
+          fireworksParticles.push({
+            mesh: particleMesh,
+            velocity: velocity,
+            lifetime: 0,
+            maxLifetime: 0.8 + Math.random() * 0.4, // Shorter lived (0.8-1.2s)
+            initialColor: color,
+            trail: [],
+          });
+        }
+      }
+
+      // Update fireworks particles
+      function updateFireworks(deltaTime) {
+        const gravity = new THREE.Vector3(0, -15, 0); // Gravity pulls particles down
+
+        for (let i = fireworksParticles.length - 1; i >= 0; i--) {
+          const particle = fireworksParticles[i];
+
+          // Update lifetime
+          particle.lifetime += deltaTime;
+
+          // Remove dead particles
+          if (particle.lifetime >= particle.maxLifetime) {
+            scene.remove(particle.mesh);
+            fireworksParticles.splice(i, 1);
+            continue;
+          }
+
+          // Apply gravity
+          particle.velocity.add(gravity.clone().multiplyScalar(deltaTime));
+
+          // Apply velocity
+          particle.mesh.position.add(
+            particle.velocity.clone().multiplyScalar(deltaTime),
+          );
+
+          // Fade out over time
+          const lifetimeRatio = particle.lifetime / particle.maxLifetime;
+          particle.mesh.material.opacity = 1 - lifetimeRatio;
+
+          // Scale down over time for a shrinking effect
+          const scale = 1 - lifetimeRatio * 0.5;
+          particle.mesh.scale.set(scale, scale, scale);
+        }
+      }
+
+      // Create base markers
+      function createBaseMarkers() {
+        // Clear existing
+        baseMarkers.forEach((m) => scene.remove(m));
+        baseMarkers = [];
+
+        // Clear existing base lines
+        baseLines.forEach((l) => scene.remove(l));
+        baseLines = [];
+
+        // Thrower base
+        const baseGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 16);
+        const baseMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+
+        const throwerBase = new THREE.Mesh(baseGeometry, baseMaterial);
+        throwerBase.position.set(
+          gameState.throwerPos.x,
+          0.05,
+          gameState.throwerPos.z,
+        );
+        throwerBase.receiveShadow = true;
+        scene.add(throwerBase);
+        baseMarkers.push(throwerBase);
+
+        // Receiver base
+        const receiverBase = new THREE.Mesh(baseGeometry, baseMaterial);
+        receiverBase.position.set(
+          gameState.receiverPos.x,
+          0.05,
+          gameState.receiverPos.z,
+        );
+        receiverBase.receiveShadow = true;
+        scene.add(receiverBase);
+        baseMarkers.push(receiverBase);
+
+        // Create horizontal lines under each base
+        const lineColor = 0xffffff;
+        const lineMaterial = new THREE.MeshBasicMaterial({ color: lineColor });
+
+        // Line under thrower
+        const throwerLineGeometry = new THREE.PlaneGeometry(24, 0.15);
+        const throwerLine = new THREE.Mesh(throwerLineGeometry, lineMaterial);
+        throwerLine.rotation.x = -Math.PI / 2;
+        throwerLine.position.set(0, 0.02, gameState.throwerPos.z);
+        scene.add(throwerLine);
+        baseLines.push(throwerLine);
+
+        // Line under receiver
+        const receiverLineGeometry = new THREE.PlaneGeometry(24, 0.15);
+        const receiverLine = new THREE.Mesh(receiverLineGeometry, lineMaterial);
+        receiverLine.rotation.x = -Math.PI / 2;
+        receiverLine.position.set(0, 0.02, gameState.receiverPos.z);
+        scene.add(receiverLine);
+        baseLines.push(receiverLine);
+      }
+
+      // Generate obstacles
+      // Generate obstacles - Fall Guys style
+      // Generate obstacles - Fall Guys style
+      // Generate obstacles - Fall Guys style
+      function generateObstacles() {
+        // Clear existing poles
+        poles.forEach((p) => scene.remove(p.mesh));
+        poles = [];
+
+        const config = window.gameConfig;
+        const baseDistance = config.baseDistance || 28;
+
+        // Difficulty progression:
+        // Score 0 (first throw): 1 obstacle
+        // Score 1+ (second base onwards): 2+ obstacles, increasing with score
+        let poleCount;
+        if (gameState.score === 0) {
+          poleCount = 1; // First throw is easy
+        } else {
+          // Starting from second base, use 2 obstacles and increase every 3 scores
+          poleCount = Math.min(6, 2 + Math.floor((gameState.score - 1) / 3));
+        }
+
+        const poleSpeed =
+          (config.poleSpeedMultiplier || 1) * (1 + gameState.score * 0.1);
+
+        gameState.poleCount = poleCount;
+        gameState.poleSpeed = poleSpeed;
+
+        // CONSISTENT COLORS - all obstacles use these same colors
+        const obstacleColor = 0xff1493; // Deep Pink for all segments
+        const baseColor = 0xffd700; // Gold for all bases
+
+        // Determine how many obstacles should pause
+        // Start adding pausers when there are 3+ obstacles
+        let numPausers = 0;
+        if (poleCount >= 3) {
+          // About 40% of obstacles should pause when there are many
+          numPausers = Math.floor(poleCount * 0.4);
+          // At least 1 pauser if we have 3+ obstacles
+          numPausers = Math.max(1, numPausers);
+        }
+
+        // Randomly select which obstacles will pause
+        const pauserIndices = new Set();
+        while (
+          pauserIndices.size < numPausers &&
+          pauserIndices.size < poleCount
+        ) {
+          pauserIndices.add(Math.floor(Math.random() * poleCount));
+        }
+
+        for (let i = 0; i < poleCount; i++) {
+          const obstacleGroup = new THREE.Group();
+
+          // All obstacles have the same number of segments (3)
+          const numSegments = 3;
+
+          // All obstacles move
+          const isStatic = false;
+
+          // All segments are SPHERES for consistency
+          for (let j = 0; j < numSegments; j++) {
+            const sphereGeometry = new THREE.SphereGeometry(0.6, 16, 16);
+            const sphereMaterial = new THREE.MeshLambertMaterial({
+              color: obstacleColor,
+              emissive: obstacleColor,
+              emissiveIntensity: 0.2,
+            });
+            const segment = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            segment.position.y = j * 1.1 + 0.6;
+            segment.castShadow = true;
+            obstacleGroup.add(segment);
+          }
+
+          // Add a base platform (consistent color for all bases)
+          const baseGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.3, 16);
+          const baseMaterial = new THREE.MeshLambertMaterial({
+            color: baseColor,
+            emissive: baseColor,
+            emissiveIntensity: 0.2,
+          });
+          const base = new THREE.Mesh(baseGeometry, baseMaterial);
+          base.position.y = 0.15;
+          obstacleGroup.add(base);
+
+          // Position obstacle between thrower and receiver
+          const zPos =
+            gameState.throwerPos.z + (baseDistance * (i + 1)) / (poleCount + 1);
+          const xRange = 18 - gameState.score * 0.2;
+
+          // All moving obstacles can appear anywhere across the field
+          const startX = (Math.random() - 0.5) * xRange;
+
+          obstacleGroup.position.set(startX, 0, zPos);
+          scene.add(obstacleGroup);
+
+          const canPause = pauserIndices.has(i);
+
+          poles.push({
+            mesh: obstacleGroup,
+            baseX: 0, // Center position
+            range: 10, // Full width movement from -10 to +10
+            speed: poleSpeed * (0.8 + Math.random() * 0.4),
+            phase: Math.random() * Math.PI * 2,
+            direction: Math.random() > 0.5 ? 1 : -1,
+            canPause: canPause,
+            isPaused: false,
+            pauseTimer: 0,
+            pauseDuration: 1.0, // 1 second pause
+            lastDirection: 0, // Track direction when pausing
+            pauseCooldown: 0, // Cooldown timer to prevent pausing too frequently
+            pauseCooldownDuration: 2.0, // Wait at least 2 seconds between pauses
+          });
+        }
+      }
+
+      // Generate shield powerups randomly
+      function generatePowerups() {
+        // Clear existing powerups
+        powerups.forEach((p) => scene.remove(p.mesh));
+        powerups = [];
+
+        const baseDistance = window.gameConfig.baseDistance || 28;
+
+        // Random chance to spawn a powerup (60% chance)
+        if (Math.random() < 0.6) {
+          // Position powerup between obstacles
+          const zPos =
+            gameState.throwerPos.z + baseDistance * (0.3 + Math.random() * 0.4);
+          const xRange = 8; // Accessible range
+          const xPos = (Math.random() - 0.5) * xRange;
+          const yPos = 1.5 + Math.random() * 2; // Between 1.5 and 3.5 height
+
+          // Create shield powerup visual - LARGER SIZE
+          const powerupGroup = new THREE.Group();
+
+          // Shield icon - octagonal shape (increased from 0.5 to 0.8)
+          const shieldGeometry = new THREE.CircleGeometry(0.8, 8);
+          const shieldMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide,
+            emissive: 0x00ffff,
+            emissiveIntensity: 0.8,
+          });
+          const shield = new THREE.Mesh(shieldGeometry, shieldMaterial);
+          powerupGroup.add(shield);
+
+          // Outer ring for extra visual effect (increased from 0.5-0.6 to 0.8-0.95)
+          const ringGeometry = new THREE.RingGeometry(0.8, 0.95, 8);
+          const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide,
+          });
+          const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+          powerupGroup.add(ring);
+
+          // Glow effect (increased from 0.7 to 1.1)
+          const glowGeometry = new THREE.SphereGeometry(1.1, 16, 16);
+          const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.2,
+          });
+          const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+          powerupGroup.add(glow);
+
+          powerupGroup.position.set(xPos, yPos, zPos);
+          scene.add(powerupGroup);
+
+          powerups.push({
+            mesh: powerupGroup,
+            position: new THREE.Vector3(xPos, yPos, zPos),
+            collected: false,
+          });
+        }
+      }
+
+      // Create shield aura around frisbee
+      function createShieldAura() {
+        if (shieldAura) {
+          scene.remove(shieldAura);
+        }
+
+        const auraGeometry = new THREE.SphereGeometry(1.2, 16, 16);
+        const auraMaterial = new THREE.MeshBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.3,
+          side: THREE.DoubleSide,
+          emissive: 0x00ffff,
+          emissiveIntensity: 0.5,
+        });
+        shieldAura = new THREE.Mesh(auraGeometry, auraMaterial);
+        scene.add(shieldAura);
+      }
+
+      // Remove shield aura
+      function removeShieldAura() {
+        if (shieldAura) {
+          scene.remove(shieldAura);
+          shieldAura = null;
+        }
+      }
+
+      // Check if frisbee collects powerup
+      function checkPowerupCollection() {
+        if (gameState.hasShield) return; // Already has shield, don't collect
+
+        const frisbeePos = gameState.frisbeePos;
+        const collectRadius = 1.3;
+
+        for (const powerup of powerups) {
+          if (powerup.collected) continue;
+
+          const dist = frisbeePos.distanceTo(powerup.position);
+          if (dist < collectRadius) {
+            // Collect powerup
+            powerup.collected = true;
+            scene.remove(powerup.mesh);
+
+            // Activate shield
+            gameState.hasShield = true;
+            createShieldAura();
+
+            // Play sound effect (reuse catch sound)
+            playSound("catch_sound", false, 0.8);
+
+            // Show collection message
+            const comboDisplay = document.getElementById("combo-display");
+            comboDisplay.textContent = "SHIELD ACTIVATED!";
+            comboDisplay.style.color = "#00FFFF";
+            comboDisplay.classList.add("visible");
+            setTimeout(() => {
+              comboDisplay.classList.remove("visible");
+              comboDisplay.style.color = "#FFD54F";
+            }, 1000);
+
+            break;
+          }
+        }
+      }
+
+      // Update powerup animations
+      function updatePowerups(deltaTime) {
+        const time = performance.now() / 1000;
+
+        powerups.forEach((powerup) => {
+          if (powerup.collected) return;
+
+          // Rotate powerup
+          powerup.mesh.rotation.y += deltaTime * 2;
+
+          // Bob up and down
+          const bobHeight = Math.sin(time * 3) * 0.2;
+          powerup.mesh.position.y = powerup.position.y + bobHeight;
+
+          // Pulse glow effect
+          if (powerup.mesh.children[2]) {
+            const glowScale = 1.0 + Math.sin(time * 4) * 0.15;
+            powerup.mesh.children[2].scale.set(glowScale, glowScale, glowScale);
+          }
+        });
+      }
+
+      // Update shield aura
+      function updateShieldAura() {
+        if (!shieldAura || !gameState.hasShield) return;
+
+        // Position aura at frisbee
+        shieldAura.position.copy(gameState.frisbeePos);
+
+        // Rotate aura
+        const time = performance.now() / 1000;
+        shieldAura.rotation.y += 0.02;
+        shieldAura.rotation.x = Math.sin(time * 2) * 0.1;
+
+        // Pulse effect
+        const scale = 1.0 + Math.sin(time * 5) * 0.1;
+        shieldAura.scale.set(scale, scale, scale);
+      }
+
+      // Update pole positions
+      function updatePoles(deltaTime) {
+        const time = performance.now() / 1000;
+
+        poles.forEach((pole) => {
+          // Update cooldown timer
+          if (pole.pauseCooldown > 0) {
+            pole.pauseCooldown -= deltaTime;
+          }
+
+          // Check if this pole should pause (randomly)
+          if (pole.canPause && !pole.isPaused && pole.pauseCooldown <= 0) {
+            // Calculate current position in the sine wave
+            const sineValue = Math.sin(time * pole.speed + pole.phase);
+            const targetX = pole.baseX + sineValue * pole.range;
+
+            // Detect when the pole crosses the center (baseX)
+            // The pole is at center when sine value is close to 0
+            const isNearCenter = Math.abs(sineValue) < 0.15; // Small threshold around center
+
+            // Random chance to pause when near center (50% chance)
+            if (isNearCenter && Math.random() < 0.5) {
+              // Start pause
+              pole.isPaused = true;
+              pole.pauseTimer = 0;
+              pole.lastDirection = sineValue < 0 ? -1 : 1; // Remember which direction we were going
+              // Keep current position
+              pole.pausedPosition = pole.mesh.position.x;
+            }
+          }
+
+          // Handle paused state
+          if (pole.isPaused) {
+            pole.pauseTimer += deltaTime;
+
+            // Keep pole at paused position
+            pole.mesh.position.x = pole.pausedPosition;
+
+            // Check if pause duration is complete
+            if (pole.pauseTimer >= pole.pauseDuration) {
+              pole.isPaused = false;
+              pole.pauseCooldown = pole.pauseCooldownDuration; // Start cooldown
+              // Adjust phase so movement continues smoothly from paused position
+              // This ensures the pole continues in the direction it was going
+              pole.phase =
+                Math.asin((pole.pausedPosition - pole.baseX) / pole.range) -
+                time * pole.speed;
+            }
+          } else {
+            // Normal movement
+            const newX =
+              pole.baseX +
+              Math.sin(time * pole.speed + pole.phase) * pole.range;
+            pole.mesh.position.x = newX;
+          }
+        });
+      }
+
+      // Check collision with poles - returns the collided pole or null
+      function checkCollision() {
+        const frisbeePos = gameState.frisbeePos;
+        const frisbeeRadius = 0.6; // Match larger frisbee size
+
+        for (const pole of poles) {
+          const polePos = pole.mesh.position;
+          const obstacleRadius = 0.7; // Thicker obstacles
+
+          // Check if frisbee is at pole's z position
+          if (Math.abs(frisbeePos.z - polePos.z) < 0.8) {
+            // Check horizontal distance
+            const dx = frisbeePos.x - polePos.x;
+            const dy = frisbeePos.y - polePos.y;
+
+            // Obstacles can be various heights based on segments
+            if (frisbeePos.y > 0 && frisbeePos.y < 5) {
+              const dist = Math.abs(dx);
+              if (dist < frisbeeRadius + obstacleRadius) {
+                return pole; // Return the collided pole
+              }
+            }
+          }
+        }
+        return null; // No collision
+      }
+
+      // Check if frisbee caught
+      function checkCatch() {
+        const frisbeePos = gameState.frisbeePos;
+        const receiverPos = gameState.receiverPos;
+
+        const catchZoneSizes = { small: 1.5, medium: 2.5, large: 3.5 };
+        const catchRadius =
+          catchZoneSizes[window.gameConfig.catchZoneSize || "medium"];
+
+        const dx = frisbeePos.x - receiverPos.x;
+        const dz = frisbeePos.z - receiverPos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        // Check if within catch zone and at reasonable height
+        if (dist < catchRadius && frisbeePos.y > 0.5 && frisbeePos.y < 3) {
+          return true;
+        }
+
+        return false;
+      }
+
+      // Throw frisbee
+      // Throw frisbee
+      function throwFrisbee() {
+        if (gameState.phase !== "aiming") return;
+
+        const config = window.gameConfig;
+
+        // Calculate swipe direction and magnitude
+        const dx = gameState.dragCurrent.x - gameState.dragStart.x;
+        const dy = gameState.dragCurrent.y - gameState.dragStart.y;
+        const swipeLength = Math.sqrt(dx * dx + dy * dy);
+
+        // Calculate control point for the arc
+        // This creates a quadratic Bezier curve: start -> control -> end
+        const start = gameState.throwerPos.clone();
+        start.y = 2.0; // Floating frisbee height
+
+        const end = gameState.receiverPos.clone();
+        end.y = 2.0; // Target height at pole
+
+        // Default control point (straight throw)
+        let controlOffsetX = 0;
+        let controlOffsetZ = 0;
+
+        // Convert screen swipe to 3D offset
+        // Screen X maps to world X (horizontal curve)
+        // Screen Y affects how much forward momentum
+        const power =
+          Math.min(swipeLength / 100, 2) * (config.frisbeeSpeedMultiplier || 1);
+
+        // Control point offset based on swipe direction
+        // The control point determines the arc shape
+        // Negate dx to fix direction: swipe right = curve right
+        controlOffsetX = -(dx / swipeLength) * power * 10; // Horizontal curve
+
+        // Forward offset based on swipe (less effect than horizontal)
+        const verticalPower = Math.abs(dy / swipeLength) * power;
+        controlOffsetZ = verticalPower * 5;
+
+        // Position control point at midpoint plus offset
+        const midZ = (start.z + end.z) / 2;
+        const controlPoint = new THREE.Vector3(
+          start.x + controlOffsetX,
+          2.0, // Target height
+          midZ + controlOffsetZ,
+        );
+
+        // Store curve parameters for animation
+        gameState.curvePath = {
+          start: start,
+          control: controlPoint,
+          end: end,
+          progress: 0,
+          duration: 1.0, // Flight time in seconds - faster and more responsive
+        };
+
+        // Start flying immediately - no throwing animation
+        gameState.phase = "flying";
+        gameState.frisbeePos.copy(start);
+        gameState.isDragging = false;
+
+        // Make frisbee visible now that it's being thrown
+        frisbeeMesh.visible = true;
+        frisbeeMesh.position.copy(start);
+
+        playSound("throw_sound");
+
+        // Clear trajectory canvas
+        const trajectoryCanvas = document.getElementById("trajectory-canvas");
+        const ctx = trajectoryCanvas.getContext("2d");
+        ctx.clearRect(0, 0, trajectoryCanvas.width, trajectoryCanvas.height);
+      }
+
+      // Update throwing animation
+      function updateThrowAnimation(deltaTime) {
+        if (gameState.phase !== "throwing") return;
+
+        gameState.throwAnimProgress += deltaTime / gameState.throwAnimDuration;
+
+        if (gameState.throwAnimProgress >= 1) {
+          // Animation complete, start flying
+          gameState.phase = "flying";
+          gameState.frisbeePos.copy(gameState.curvePath.start);
+
+          // Reset arm to rest position
+          if (throwerSprite && throwerSprite.userData.rightArm) {
+            const rightArm = throwerSprite.userData.rightArm;
+            rightArm.rotation.z = -Math.PI / 3;
+            rightArm.rotation.x = 0;
+            rightArm.position.set(0.5, 1.3, 0);
+          }
+          return;
+        }
+
+        // Animate the right arm throwing motion
+        const t = gameState.throwAnimProgress;
+        const easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease in-out
+
+        if (throwerSprite && throwerSprite.userData.rightArm) {
+          const rightArm = throwerSprite.userData.rightArm;
+
+          // Start: arm raised back (rotation.z = -PI/3, rotation.x = 0)
+          // End: arm extended forward (rotation.z = -PI/6, rotation.x = -PI/3)
+          const startRotZ = -Math.PI / 3;
+          const endRotZ = -Math.PI / 6;
+          const startRotX = 0;
+          const endRotX = -Math.PI / 3;
+
+          rightArm.rotation.z = startRotZ + (endRotZ - startRotZ) * easeT;
+          rightArm.rotation.x = startRotX + (endRotX - startRotX) * easeT;
+
+          // Move arm forward during throw
+          const startZ = 0;
+          const endZ = 0.4;
+          rightArm.position.z = startZ + (endZ - startZ) * easeT;
+        }
+
+        // Position frisbee at the right hand during animation
+        // Calculate world position of right hand
+        const handOffset = new THREE.Vector3(0.65, 1.5, 0.2 + easeT * 0.4);
+        handOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0); // No rotation for now
+
+        gameState.frisbeePos.copy(gameState.throwerPos).add(handOffset);
+        frisbeeMesh.position.copy(gameState.frisbeePos);
+      }
+
+      // Update frisbee physics
+      function updateFrisbee(deltaTime) {
+        if (gameState.phase !== "flying") return;
+
+        // Update curve progress
+        gameState.curvePath.progress +=
+          deltaTime / gameState.curvePath.duration;
+
+        // Clamp to 0-1 range
+        const t = Math.min(1, Math.max(0, gameState.curvePath.progress));
+
+        // Quadratic Bezier curve formula: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+        const oneMinusT = 1 - t;
+        const start = gameState.curvePath.start;
+        const control = gameState.curvePath.control;
+        const end = gameState.curvePath.end;
+
+        // Calculate position on curve
+        const newPos = new THREE.Vector3(
+          oneMinusT * oneMinusT * start.x +
+            2 * oneMinusT * t * control.x +
+            t * t * end.x,
+          oneMinusT * oneMinusT * start.y +
+            2 * oneMinusT * t * control.y +
+            t * t * end.y,
+          oneMinusT * oneMinusT * start.z +
+            2 * oneMinusT * t * control.z +
+            t * t * end.z,
+        );
+
+        // Update frisbee position
+        gameState.frisbeePos.copy(newPos);
+
+        // Calculate velocity for visual effects (derivative of curve)
+        const velocity = new THREE.Vector3(
+          2 * oneMinusT * (control.x - start.x) + 2 * t * (end.x - control.x),
+          2 * oneMinusT * (control.y - start.y) + 2 * t * (end.y - control.y),
+          2 * oneMinusT * (control.z - start.z) + 2 * t * (end.z - control.z),
+        );
+
+        // Rotation based on speed
+        gameState.frisbeeRotation += deltaTime * 10;
+
+        // Update mesh
+        frisbeeMesh.position.copy(gameState.frisbeePos);
+        frisbeeMesh.rotation.y = gameState.frisbeeRotation;
+
+        // Tilt frisbee based on velocity direction for visual effect
+        const velocityAngle = Math.atan2(velocity.x, velocity.z);
+        frisbeeMesh.rotation.z = Math.sin(velocityAngle) * 0.3;
+
+        // Update trail effect
+        updateTrail();
+
+        // Check powerup collection
+        checkPowerupCollection();
+
+        // Check collision with poles
+        const collidedPole = checkCollision();
+        if (collidedPole) {
+          handleCollision(collidedPole);
+          return;
+        }
+
+        // Check if reached end of curve
+        if (t >= 1) {
+          successfulCatch();
+          return;
+        }
+      }
+
+      // Successful catch
+      // Successful catch
+      // Successful catch - RESTART IMMEDIATELY
+      // Successful catch - with smooth transition
+      // Successful catch - with smooth transition
+      function successfulCatch() {
+        gameState.score++;
+
+        playSound("catch_sound");
+
+        // Spawn fireworks at receiver position
+        const fireworksPosition = gameState.receiverPos.clone();
+        fireworksPosition.y = 3; // Slightly above the receiver
+        spawnFireworks(fireworksPosition);
+
+        // Update score display
+        document.getElementById("score-value").textContent = gameState.score;
+
+        // Show celebration message briefly
+        const comboDisplay = document.getElementById("combo-display");
+        const successMessages = [
+          "NICE CATCH!",
+          "ON FIRE!",
+          "BULLSEYE!",
+          "SMOOTH!",
+          "NAILED IT!",
+          "TOO EASY!",
+          "UNSTOPPABLE!",
+          "WICKED!",
+          "EPIC THROW!",
+          "STELLAR!",
+          "BOOM!",
+          "FLAWLESS!",
+          "LEGEND!",
+          "SAVAGE!",
+          "CLUTCH!",
+        ];
+        const successColors = [
+          "#FF6B6B",
+          "#FFD93D",
+          "#6C63FF",
+          "#00E5A0",
+          "#FF8C42",
+          "#00D4FF",
+          "#FF6BFF",
+          "#7BFF6B",
+          "#FFB86B",
+        ];
+        const msg =
+          successMessages[Math.floor(Math.random() * successMessages.length)];
+        const clr =
+          successColors[Math.floor(Math.random() * successColors.length)];
+        comboDisplay.textContent = msg;
+        comboDisplay.style.color = clr;
+        comboDisplay.classList.add("visible");
+        setTimeout(() => {
+          comboDisplay.classList.remove("visible");
+          comboDisplay.style.color = "#FFD54F";
+        }, 800);
+
+        // IMMEDIATELY clear and hide trail to prevent visual glitches
+        clearTrail();
+        // Force all trail meshes to be invisible immediately
+        trailMeshes.forEach((mesh) => {
+          if (mesh) mesh.visible = false;
+        });
+
+        // Start smooth transition to show progression
+        gameState.phase = "transitioning";
+        gameState.transitionProgress = 0;
+      }
+
+      // Transition to next throw
+      function updateTransition(deltaTime) {
+        if (gameState.phase !== "transitioning") return;
+
+        gameState.transitionProgress += deltaTime * 2;
+
+        if (gameState.transitionProgress >= 1) {
+          // Complete transition
+          const config = window.gameConfig;
+          const baseDistance = config.baseDistance || 28;
+
+          // Move thrower to receiver position
+          gameState.throwerPos.copy(gameState.receiverPos);
+
+          // New receiver position
+          gameState.receiverPos.z += baseDistance;
+
+          // Reset frisbee - adjusted for larger character (1.4x scale)
+          gameState.frisbeePos.set(
+            gameState.throwerPos.x + 0.91,
+            2.1,
+            gameState.throwerPos.z + 0.28,
+          );
+          gameState.frisbeeVel.set(0, 0, 0);
+
+          // Clear trail only
+          clearTrail();
+
+          // Update characters
+          throwerSprite.position.copy(gameState.throwerPos);
+          receiverSprite.position.copy(gameState.receiverPos);
+          frisbeeMesh.position.copy(gameState.frisbeePos);
+
+          // Update camera - tilted view with depth
+          camera.position.set(
+            gameState.throwerPos.x,
+            13,
+            gameState.throwerPos.z - 4,
+          );
+          camera.lookAt(gameState.throwerPos.x, 0, gameState.throwerPos.z + 10);
+
+          // Update bases
+          createBaseMarkers();
+
+          // Generate new obstacles and powerups
+          generateObstacles();
+          generatePowerups();
+
+          // Ground and stadium elements are now updated in the game loop for better performance
+          // Force immediate update here for transition
+          const targetStadiumZ = gameState.throwerPos.z + 10;
+          groundMesh.position.z = targetStadiumZ;
+          skyMesh.position.z = gameState.throwerPos.z;
+
+          stadiumElements.forEach((element) => {
+            if (element.userData.baseZOffset !== undefined) {
+              element.position.z =
+                targetStadiumZ + element.userData.baseZOffset;
+            } else {
+              element.position.z = targetStadiumZ;
+            }
+          });
+
+          gameState.phase = "aiming";
+        } else {
+          // Animate transition - smooth camera movement
+          const t = gameState.transitionProgress;
+          const easeT = t * t * (3 - 2 * t); // Smooth step
+
+          // Move camera forward maintaining tilted view
+          const startCamZ = gameState.throwerPos.z - 6;
+          const endCamZ = gameState.receiverPos.z - 6;
+          camera.position.z = startCamZ + (endCamZ - startCamZ) * easeT;
+          camera.lookAt(0, 0, camera.position.z + 16);
+        }
+      }
+
+      // Handle collision - lose a life
+      // Submit score and display leaderboard
+      async function submitAndDisplayLeaderboard(score) {
+        const leaderboardEntries = document.getElementById(
+          "leaderboard-entries",
+        );
+
+        // Show loading state
+        leaderboardEntries.innerHTML =
+          '<div class="leaderboard-loading">Loading leaderboard...</div>';
+
+        try {
+          // Submit score and get top 10 entries
+          const response = await lib.addPlayerScoreToLeaderboard(score, 10);
+
+          if (
+            response.success &&
+            response.entries &&
+            response.entries.length > 0
+          ) {
+            // Clear loading message
+            leaderboardEntries.innerHTML = "";
+
+            // Display each entry
+            response.entries.forEach((entry, index) => {
+              const entryDiv = document.createElement("div");
+              entryDiv.className = "leaderboard-entry";
+
+              // Highlight current player's entry
+              const isCurrentPlayer =
+                response.userRank !== null && index + 1 === response.userRank;
+              if (isCurrentPlayer) {
+                entryDiv.classList.add("current-player");
+              }
+
+              // Rank
+              const rank = index + 1;
+              const rankSpan = document.createElement("span");
+              rankSpan.className = "leaderboard-rank";
+              if (rank <= 3) {
+                rankSpan.classList.add("top3", `rank${rank}`);
+              }
+              rankSpan.textContent = `#${rank}`;
+              entryDiv.appendChild(rankSpan);
+
+              // Profile picture
+              const profileImg = document.createElement("img");
+              profileImg.className = "leaderboard-profile";
+              profileImg.src =
+                entry.profilePicture ||
+                'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23888"/><circle cx="50" cy="40" r="20" fill="%23fff"/><circle cx="50" cy="85" r="30" fill="%23fff"/></svg>';
+              profileImg.alt = entry.username;
+              profileImg.onerror = function () {
+                this.src =
+                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23888"/><circle cx="50" cy="40" r="20" fill="%23fff"/><circle cx="50" cy="85" r="30" fill="%23fff"/></svg>';
+              };
+              entryDiv.appendChild(profileImg);
+
+              // Player info container
+              const infoDiv = document.createElement("div");
+              infoDiv.className = "leaderboard-info";
+
+              // Username
+              const usernameSpan = document.createElement("span");
+              usernameSpan.className = "leaderboard-username";
+              usernameSpan.textContent = entry.username || "Anonymous";
+              infoDiv.appendChild(usernameSpan);
+
+              entryDiv.appendChild(infoDiv);
+
+              // Score
+              const scoreSpan = document.createElement("span");
+              scoreSpan.className = "leaderboard-score";
+              scoreSpan.textContent = entry.score;
+              entryDiv.appendChild(scoreSpan);
+
+              leaderboardEntries.appendChild(entryDiv);
+            });
+          } else {
+            // No entries yet
+            leaderboardEntries.innerHTML =
+              '<div class="leaderboard-loading">Be the first to set a score!</div>';
+          }
+        } catch (error) {
+          // Handle errors gracefully (e.g., guest users, network issues)
+          lib.log(`Failed to load leaderboard: ${error.message}`);
+          leaderboardEntries.innerHTML =
+            '<div class="leaderboard-error">Unable to load leaderboard. Play as a registered user to compete!</div>';
+        }
+      }
+
+      // Handle collision - check shield first, destroy obstacle if shield is active
+      function handleCollision(collidedPole) {
+        // Check if shield is active
+        if (gameState.hasShield) {
+          // Shield destroys the obstacle
+          gameState.hasShield = false;
+          removeShieldAura();
+
+          // Spawn destruction particles at obstacle position
+          if (collidedPole) {
+            const obstaclePos = collidedPole.mesh.position.clone();
+            obstaclePos.y += 1.5; // Center of obstacle height
+            spawnDestructionParticles(obstaclePos);
+
+            // Remove the collided obstacle from scene and array
+            scene.remove(collidedPole.mesh);
+            const index = poles.indexOf(collidedPole);
+            if (index > -1) {
+              poles.splice(index, 1);
+            }
+          }
+
+          // Play sound
+          playSound("catch_sound", false, 1.0);
+
+          // Show obstacle destroyed message
+          const comboDisplay = document.getElementById("combo-display");
+          comboDisplay.textContent = "OBSTACLE DESTROYED!";
+          comboDisplay.style.color = "#00FFFF";
+          comboDisplay.classList.add("visible");
+          setTimeout(() => {
+            comboDisplay.classList.remove("visible");
+            comboDisplay.style.color = "#FFD54F";
+          }, 1000);
+
+          // Continue flying - no damage
+          return;
+        }
+
+        // No shield - take damage
+        gameState.lives--;
+
+        playSound("collision_sound");
+
+        // Update lives display
+        updateLivesDisplay();
+
+        // Show failure message
+        const comboDisplay = document.getElementById("combo-display");
+        const failMessages = ["FAIL!", "MISS!", "CRASH!", "OOPS!", "WIPEOUT!"];
+        const randomMessage =
+          failMessages[Math.floor(Math.random() * failMessages.length)];
+        comboDisplay.textContent = randomMessage;
+        comboDisplay.style.color = "#FF1493";
+        comboDisplay.classList.add("visible");
+        setTimeout(() => {
+          comboDisplay.classList.remove("visible");
+          comboDisplay.style.color = "#FFD54F"; // Reset to default color
+        }, 1000);
+
+        // Start collision animation
+        gameState.phase = "collision";
+        gameState.collisionAnimTime = 0;
+        gameState.collisionStartPos = gameState.frisbeePos.clone();
+        gameState.collisionVelocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 3, // Random horizontal velocity
+          2, // Initial upward velocity
+          gameState.frisbeeVel.z * 0.3, // Some forward momentum
+        );
+        gameState.collisionRotVel = (Math.random() - 0.5) * 20; // Random spin
+      }
+
+      // Update lives display UI
+      function updateLivesDisplay() {
+        for (let i = 1; i <= 3; i++) {
+          const lifeIcon = document.getElementById(`life-${i}`);
+          if (i > gameState.lives) {
+            lifeIcon.classList.add("lost");
+          } else {
+            lifeIcon.classList.remove("lost");
+          }
+        }
+      }
+
+      // Update collision animation
+      function updateCollisionAnimation(deltaTime) {
+        if (gameState.phase !== "collision") return;
+
+        gameState.collisionAnimTime += deltaTime;
+
+        // Camera shake effect - soft and smooth
+        const shakeIntensity = Math.max(
+          0,
+          0.5 - gameState.collisionAnimTime * 0.5,
+        );
+        const shakeX = (Math.random() - 0.5) * shakeIntensity;
+        const shakeY = (Math.random() - 0.5) * shakeIntensity;
+
+        // Apply shake to camera
+        const baseCamX = gameState.throwerPos.x;
+        const baseCamY = 13;
+        const baseCamZ = gameState.throwerPos.z - 4;
+        camera.position.set(baseCamX + shakeX, baseCamY + shakeY, baseCamZ);
+        camera.lookAt(gameState.throwerPos.x, 0, gameState.throwerPos.z + 10);
+
+        // Animate frisbee falling
+        const gravity = 15; // Gravity acceleration
+        gameState.collisionVelocity.y -= gravity * deltaTime;
+
+        // Update position
+        gameState.frisbeePos.x += gameState.collisionVelocity.x * deltaTime;
+        gameState.frisbeePos.y += gameState.collisionVelocity.y * deltaTime;
+        gameState.frisbeePos.z += gameState.collisionVelocity.z * deltaTime;
+
+        // Add tumbling rotation
+        gameState.frisbeeRotation += gameState.collisionRotVel * deltaTime;
+        frisbeeMesh.rotation.y = gameState.frisbeeRotation;
+        frisbeeMesh.rotation.x += deltaTime * 8;
+        frisbeeMesh.rotation.z += deltaTime * 6;
+
+        // Update mesh position
+        frisbeeMesh.position.copy(gameState.frisbeePos);
+
+        // End animation when frisbee falls below ground or after 1.5 seconds
+        if (gameState.frisbeePos.y < -2 || gameState.collisionAnimTime > 1.5) {
+          // Check if game over
+          if (gameState.lives <= 0) {
+            gameOver();
+          } else {
+            // Reset to aiming phase for another attempt
+            gameState.phase = "aiming";
+            gameState.frisbeePos.set(
+              gameState.throwerPos.x,
+              2.0,
+              gameState.throwerPos.z,
+            );
+            frisbeeMesh.position.copy(gameState.frisbeePos);
+            frisbeeMesh.rotation.set(0, 0, 0);
+            clearTrail();
+          }
+        }
+      }
+
+      // Game over
+      async function gameOver() {
+        gameState.phase = "gameover";
+
+        stopMusic();
+
+        // Update best score
+        if (gameState.score > gameState.bestScore) {
+          gameState.bestScore = gameState.score;
+          document.getElementById("best-value").textContent =
+            gameState.bestScore;
+
+          // Save best score
+          const currentState = await lib.getUserGameState();
+          const state = currentState?.state || {};
+          state.bestScore = gameState.bestScore;
+          if (selectedFrisbeeId) {
+            state.selectedFrisbee = selectedFrisbeeId;
+          }
+          await lib.saveUserGameState(state);
+        }
+
+        // Submit score to leaderboard in background
+        submitAndDisplayLeaderboard(gameState.score);
+
+        // Auto-restart after a short pause
+        setTimeout(() => {
+          restartGame();
+        }, 1200);
+      }
+
+      // Restart game
+      function restartGame() {
+        // Clear trail from previous game
+        clearTrail();
+
+        // Reset state
+        gameState.score = 0;
+        gameState.combo = 1;
+        gameState.lives = 3;
+        gameState.phase = "aiming";
+
+        // Reset lives display
+        updateLivesDisplay();
+
+        gameState.throwerPos.set(0, 0, 0);
+        gameState.receiverPos.set(0, 0, window.gameConfig.baseDistance || 28);
+        gameState.frisbeePos.set(0, 2.0, 0);
+        gameState.frisbeeVel.set(0, 0, 0);
+        gameState.frisbeeRotation = 0;
+
+        // Update positions
+        throwerSprite.position.copy(gameState.throwerPos);
+        receiverSprite.position.copy(gameState.receiverPos);
+        frisbeeMesh.position.copy(gameState.frisbeePos);
+
+        // Reset frisbee rotation
+        frisbeeMesh.rotation.set(0, 0, 0);
+
+        // Reset camera - tilted view with depth
+        camera.position.set(0, 13, -6);
+        camera.lookAt(0, 0, 10);
+
+        // Reset ground
+        groundMesh.position.z = 10;
+
+        // Update UI
+        document.getElementById("score-value").textContent = "0";
+
+        // Show tutorial message again on restart
+        const tutorialMessage = document.getElementById("tutorial-message");
+        if (tutorialMessage) {
+          tutorialMessage.classList.add("visible");
+        }
+
+        // Regenerate obstacles and powerups
+        createBaseMarkers();
+        generateObstacles();
+        generatePowerups();
+
+        // Clear shield on restart
+        removeShieldAura();
+        gameState.hasShield = false;
+
+        // Restart music
+        startMusic();
+      }
+
+      // Draw trajectory preview - DISABLED
+      function drawTrajectory() {
+        const canvas = document.getElementById("trajectory-canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Only draw during aiming phase while dragging
+        if (gameState.phase !== "aiming" || !gameState.isDragging) return;
+
+        // Calculate swipe direction
+        const dx = gameState.dragCurrent.x - gameState.dragStart.x;
+        const dy = gameState.dragCurrent.y - gameState.dragStart.y;
+        const swipeLength = Math.sqrt(dx * dx + dy * dy);
+
+        if (swipeLength < 10) return; // Don't draw for tiny movements
+
+        // Draw arrow showing swipe direction
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+
+        // Draw line
+        ctx.beginPath();
+        ctx.moveTo(gameState.dragStart.x, gameState.dragStart.y);
+        ctx.lineTo(gameState.dragCurrent.x, gameState.dragCurrent.y);
+        ctx.stroke();
+
+        // Draw arrowhead
+        const angle = Math.atan2(dy, dx);
+        const arrowSize = 15;
+        ctx.beginPath();
+        ctx.moveTo(gameState.dragCurrent.x, gameState.dragCurrent.y);
+        ctx.lineTo(
+          gameState.dragCurrent.x - arrowSize * Math.cos(angle - Math.PI / 6),
+          gameState.dragCurrent.y - arrowSize * Math.sin(angle - Math.PI / 6),
+        );
+        ctx.lineTo(
+          gameState.dragCurrent.x - arrowSize * Math.cos(angle + Math.PI / 6),
+          gameState.dragCurrent.y - arrowSize * Math.sin(angle + Math.PI / 6),
+        );
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw power indicator
+        const power = Math.min(swipeLength / 100, 2);
+        const powerBarWidth = 100;
+        const powerBarHeight = 8;
+        const powerBarX = gameState.dragStart.x - powerBarWidth / 2;
+        const powerBarY = gameState.dragStart.y - 30;
+
+        // Background
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(powerBarX, powerBarY, powerBarWidth, powerBarHeight);
+
+        // Power fill
+        const powerColor =
+          power < 1 ? "rgba(255, 255, 0, 0.8)" : "rgba(0, 255, 0, 0.8)";
+        ctx.fillStyle = powerColor;
+        ctx.fillRect(
+          powerBarX,
+          powerBarY,
+          powerBarWidth * (power / 2),
+          powerBarHeight,
+        );
+      }
+
+      // Input handling
+      function setupInput() {
+        const canvas = document.getElementById("game-canvas");
+        const tutorialMessage = document.getElementById("tutorial-message");
+
+        // Minimum swipe distance required to throw (in pixels)
+        const MIN_SWIPE_DISTANCE = 40;
+
+        // Touch events - swipe to throw
+        canvas.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+
+          if (gameState.phase === "aiming") {
+            const touch = e.touches[0];
+            gameState.isDragging = true;
+            gameState.dragStart = { x: touch.clientX, y: touch.clientY };
+            gameState.dragCurrent = { x: touch.clientX, y: touch.clientY };
+
+            // Hide tutorial message when player starts dragging
+            if (tutorialMessage) {
+              tutorialMessage.classList.remove("visible");
+            }
+          }
+
+          // Resume audio context
+          if (audioContext && audioContext.state === "suspended") {
+            audioContext.resume();
+          }
+        });
+
+        canvas.addEventListener("touchmove", (e) => {
+          e.preventDefault();
+
+          if (gameState.isDragging && gameState.phase === "aiming") {
+            const touch = e.touches[0];
+            gameState.dragCurrent = { x: touch.clientX, y: touch.clientY };
+
+            // Draw trajectory preview based on swipe
+            drawTrajectory();
+          }
+        });
+
+        canvas.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          if (gameState.phase === "aiming" && gameState.isDragging) {
+            // Calculate swipe distance
+            const dx = gameState.dragCurrent.x - gameState.dragStart.x;
+            const dy = gameState.dragCurrent.y - gameState.dragStart.y;
+            const swipeLength = Math.sqrt(dx * dx + dy * dy);
+
+            // Only throw if swipe distance meets minimum requirement
+            if (swipeLength >= MIN_SWIPE_DISTANCE) {
+              throwFrisbee();
+            } else {
+              // Reset dragging state - tap was too short
+              gameState.isDragging = false;
+
+              // Clear trajectory canvas
+              const trajectoryCanvas =
+                document.getElementById("trajectory-canvas");
+              const ctx = trajectoryCanvas.getContext("2d");
+              ctx.clearRect(
+                0,
+                0,
+                trajectoryCanvas.width,
+                trajectoryCanvas.height,
+              );
+            }
+          }
+        });
+
+        // Mouse events - drag to throw
+        canvas.addEventListener("mousedown", (e) => {
+          if (gameState.phase === "aiming") {
+            gameState.isDragging = true;
+            gameState.dragStart = { x: e.clientX, y: e.clientY };
+            gameState.dragCurrent = { x: e.clientX, y: e.clientY };
+
+            // Hide tutorial message when player starts dragging
+            if (tutorialMessage) {
+              tutorialMessage.classList.remove("visible");
+            }
+          }
+
+          if (audioContext && audioContext.state === "suspended") {
+            audioContext.resume();
+          }
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+          if (gameState.isDragging && gameState.phase === "aiming") {
+            gameState.dragCurrent = { x: e.clientX, y: e.clientY };
+
+            // Draw trajectory preview
+            drawTrajectory();
+          }
+        });
+
+        canvas.addEventListener("mouseup", (e) => {
+          if (gameState.phase === "aiming" && gameState.isDragging) {
+            // Calculate swipe distance
+            const dx = gameState.dragCurrent.x - gameState.dragStart.x;
+            const dy = gameState.dragCurrent.y - gameState.dragStart.y;
+            const swipeLength = Math.sqrt(dx * dx + dy * dy);
+
+            // Only throw if swipe distance meets minimum requirement
+            if (swipeLength >= MIN_SWIPE_DISTANCE) {
+              throwFrisbee();
+            } else {
+              // Reset dragging state - swipe was too short
+              gameState.isDragging = false;
+
+              // Clear trajectory canvas
+              const trajectoryCanvas =
+                document.getElementById("trajectory-canvas");
+              const ctx = trajectoryCanvas.getContext("2d");
+              ctx.clearRect(
+                0,
+                0,
+                trajectoryCanvas.width,
+                trajectoryCanvas.height,
+              );
+            }
+          }
+        });
+
+        // Prevent default mouse/touch behavior on canvas to avoid scrolling issues on mobile
+        canvas.addEventListener("touchcancel", (e) => {
+          e.preventDefault();
+          gameState.isDragging = false;
+
+          // Clear trajectory canvas
+          const trajectoryCanvas = document.getElementById("trajectory-canvas");
+          const ctx = trajectoryCanvas.getContext("2d");
+          ctx.clearRect(0, 0, trajectoryCanvas.width, trajectoryCanvas.height);
+        });
+
+        // Keyboard controls
+        document.addEventListener("keydown", (e) => {
+          if (e.code === "Space" && gameState.phase === "aiming") {
+            // Space bar throws straight ahead (for testing/accessibility)
+            gameState.dragStart = { x: 360, y: 640 };
+            gameState.dragCurrent = { x: 360, y: 540 }; // 100 pixels swipe up
+
+            // Hide tutorial message
+            if (tutorialMessage) {
+              tutorialMessage.classList.remove("visible");
+            }
+
+            throwFrisbee();
+          }
+        });
+
+        // Restart button
+        document
+          .getElementById("restart-btn")
+          .addEventListener("click", restartGame);
+        document
+          .getElementById("restart-btn")
+          .addEventListener("touchend", (e) => {
+            e.preventDefault();
+            restartGame();
+          });
+
+        // Frisbee selector button
+        document
+          .getElementById("frisbee-selector-btn")
+          .addEventListener("click", (e) => {
+            e.preventDefault();
+            openFrisbeeSelector();
+          });
+        document
+          .getElementById("frisbee-selector-btn")
+          .addEventListener("touchend", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openFrisbeeSelector();
+          });
+
+        // Close frisbee selector
+        document
+          .getElementById("close-frisbee-selector")
+          .addEventListener("click", (e) => {
+            e.preventDefault();
+            closeFrisbeeSelector();
+          });
+        document
+          .getElementById("close-frisbee-selector")
+          .addEventListener("touchend", (e) => {
+            e.preventDefault();
+            closeFrisbeeSelector();
+          });
+
+        // Close overlay when clicking outside panel
+        document
+          .getElementById("frisbee-overlay")
+          .addEventListener("click", (e) => {
+            if (e.target.id === "frisbee-overlay") {
+              closeFrisbeeSelector();
+            }
+          });
+      }
+
+      // Game loop
+      let lastTime = 0;
+      let lastStadiumUpdate = 0;
+      function gameLoop(timestamp) {
+        const deltaTime = Math.min(0.11, (timestamp - lastTime) / 1000);
+        lastTime = timestamp;
+
+        if (currentMode === "play") {
+          // Show tutorial message only on first throw
+          const tutorialMessage = document.getElementById("tutorial-message");
+          if (tutorialMessage) {
+            if (gameState.score === 0 && gameState.phase === "aiming") {
+              tutorialMessage.classList.add("visible");
+            } else {
+              tutorialMessage.classList.remove("visible");
+            }
+          }
+
+          // Update game logic
+          updatePoles(deltaTime);
+          updatePowerups(deltaTime);
+          updateFrisbee(deltaTime);
+          updateTransition(deltaTime);
+          updateCollisionAnimation(deltaTime);
+          updateFireworks(deltaTime); // Update fireworks particles
+          updateShieldAura();
+
+          // Update frisbee floating animation in aiming phase
+          if (gameState.phase === "aiming") {
+            // Floating animation - bob up and down
+            const time = timestamp / 1000;
+            const bobHeight = Math.sin(time * 2) * 0.15; // Slow sine wave
+            const bobRotation = Math.sin(time * 1.5) * 0.1; // Gentle rotation
+
+            // Position frisbee at thrower position with bob
+            gameState.frisbeePos.copy(gameState.throwerPos);
+            gameState.frisbeePos.y = throwerSprite.userData.baseY + bobHeight;
+
+            // Hide the throwable frisbee during aiming - only show thrower sprite
+            frisbeeMesh.visible = false;
+
+            // Update thrower sprite position (floating frisbee)
+            throwerSprite.position.copy(gameState.throwerPos);
+            throwerSprite.position.y = throwerSprite.userData.baseY + bobHeight;
+            throwerSprite.rotation.z = bobRotation;
+
+            // Update shadow position on ground and opacity based on height
+            if (throwerSprite.userData.shadow) {
+              // Shadow stays on ground but follows X and Z of thrower
+              throwerSprite.userData.shadow.position.x = 0;
+              throwerSprite.userData.shadow.position.y =
+                -(throwerSprite.userData.baseY + bobHeight) + 0.01;
+              throwerSprite.userData.shadow.position.z = -0.1;
+
+              // Opacity changes based on height (higher = fainter shadow)
+              const shadowOpacity =
+                0.3 *
+                Math.max(
+                  0.2,
+                  1 - (bobHeight / throwerSprite.userData.baseY) * 0.3,
+                );
+              throwerSprite.userData.shadow.material.opacity = shadowOpacity;
+            }
+
+            // Animate glow ring
+            if (throwerSprite.userData.glow) {
+              const glowScale = 1.0 + Math.sin(time * 3) * 0.1;
+              throwerSprite.userData.glow.scale.set(
+                glowScale,
+                glowScale,
+                glowScale,
+              );
+              throwerSprite.userData.glow.material.opacity =
+                0.2 + Math.sin(time * 3) * 0.1;
+            }
+          }
+
+          // Update flag waving animation - realistic cloth physics
+          if (receiverSprite && receiverSprite.userData.flag) {
+            const flag = receiverSprite.userData.flag;
+            const flagGeometry = receiverSprite.userData.flagGeometry;
+            const originalPositions =
+              receiverSprite.userData.flagOriginalPositions;
+            const time = timestamp / 1000;
+
+            // Multi-layered wave for realistic cloth movement
+            const positions = flagGeometry.attributes.position;
+
+            for (let i = 0; i < positions.count; i++) {
+              const origX = originalPositions[i].x;
+              const origY = originalPositions[i].y;
+
+              // Normalize x position (0 = pole edge, 1 = free edge)
+              const normalizedX = (origX + 0.75) / 1.5;
+
+              // Multiple wave frequencies for realism
+              const primaryWave = Math.sin(time * 3 + origX * 2.5) * 0.25;
+              const secondaryWave =
+                Math.sin(time * 5 + origX * 4 + origY) * 0.15;
+              const tertiaryWave = Math.sin(time * 7 + origY * 3) * 0.08;
+
+              // Wave amplitude increases dramatically towards free edge
+              const edgeMultiplier = Math.pow(normalizedX, 1.8);
+
+              // Vertical ripple effect
+              const verticalWave =
+                Math.sin(time * 4 + origY * 2) * 0.1 * edgeMultiplier;
+
+              // Combined wave with edge amplification
+              const totalWave =
+                (primaryWave + secondaryWave + tertiaryWave) * edgeMultiplier;
+
+              // Set new position with waves
+              positions.setZ(i, totalWave);
+              positions.setX(i, origX + verticalWave * 0.5);
+            }
+            positions.needsUpdate = true;
+          }
+
+          // Update stadium elements and sky less frequently for better performance
+          // Only update every 100ms instead of every frame
+          if (timestamp - lastStadiumUpdate > 100) {
+            const targetStadiumZ = gameState.throwerPos.z + 10;
+
+            // Move stadium elements
+            stadiumElements.forEach((element) => {
+              if (element.userData.baseZOffset !== undefined) {
+                // Keep relative Z offset for people and decorations
+                element.position.z =
+                  targetStadiumZ + element.userData.baseZOffset;
+              } else {
+                // Move structural elements directly
+                element.position.z = targetStadiumZ;
+              }
+            });
+
+            // Move sky and ground with player
+            if (skyMesh) {
+              skyMesh.position.z = gameState.throwerPos.z;
+            }
+            if (groundMesh) {
+              groundMesh.position.z = targetStadiumZ;
+            }
+
+            lastStadiumUpdate = timestamp;
+          }
+
+          // Draw trajectory preview
+          drawTrajectory();
+        }
+
+        // Render
+        renderer.render(scene, camera);
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      // Edit mode setup
+      function setupEditMode() {
+        document.getElementById("edit-indicator").classList.add("visible");
+
+        // Stop music in edit mode
+        stopMusic();
+      }
+
+      // Play mode setup
+      function setupPlayMode() {
+        document.getElementById("edit-indicator").classList.remove("visible");
+
+        // Start music
+        startMusic();
+      }
+
+      // Load saved state
+      async function loadSavedState() {
+        try {
+          const saved = await lib.getUserGameState();
+          if (saved && saved.state) {
+            if (saved.state.bestScore) {
+              gameState.bestScore = saved.state.bestScore;
+              document.getElementById("best-value").textContent =
+                gameState.bestScore;
+            }
+            // Always use the hardcoded purple frisbee design; ignore saved selection
+          }
+        } catch (e) {
+          lib.log("No saved state found");
+        }
+      }
+
+      // Save selected frisbee
+      async function saveSelectedFrisbee(frisbeeId) {
+        try {
+          const currentState = await lib.getUserGameState();
+          const state = currentState?.state || {};
+          state.selectedFrisbee = frisbeeId;
+          await lib.saveUserGameState(state);
+        } catch (e) {
+          lib.log("Failed to save selected frisbee: " + e.message);
+        }
+      }
+
+      // Get current frisbee design
+      function getCurrentFrisbeeDesign() {
+        return (
+          frisbeeDesigns.find((d) => d.id === selectedFrisbeeId) ||
+          frisbeeDesigns[0]
+        );
+      }
+
+      // Apply frisbee design to a mesh group — no-op: always keep hardcoded purple design
+      function applyFrisbeeDesign(frisbeeGroup, design) {
+        return;
+      }
+
+      // Open frisbee selector
+      function openFrisbeeSelector() {
+        const overlay = document.getElementById("frisbee-overlay");
+        const optionsContainer = document.getElementById("frisbee-options");
+
+        // Clear existing options
+        optionsContainer.innerHTML = "";
+
+        // Create frisbee options
+        frisbeeDesigns.forEach((design) => {
+          const optionDiv = document.createElement("div");
+          optionDiv.className = "frisbee-option";
+
+          // In dev mode, unlock all frisbees; otherwise check score requirement
+          const isUnlocked =
+            window.gameConfig.devMode ||
+            gameState.bestScore >= design.unlockScore;
+          const isSelected = selectedFrisbeeId === design.id;
+
+          if (!isUnlocked) {
+            optionDiv.classList.add("locked");
+          }
+          if (isSelected) {
+            optionDiv.classList.add("selected");
+          }
+
+          // Create preview
+          const previewDiv = document.createElement("div");
+          previewDiv.className = "frisbee-preview";
+          previewDiv.style.background = `radial-gradient(circle, #${design.baseColor.toString(16).padStart(6, "0")} 0%, #${design.rimColor.toString(16).padStart(6, "0")} 100%)`;
+          previewDiv.style.border = `4px solid #${design.rimColor.toString(16).padStart(6, "0")}`;
+          previewDiv.innerHTML = `<span style="font-size: 48px; color: #${design.starColor.toString(16).padStart(6, "0")}; text-shadow: 0 0 8px rgba(255,255,255,0.5);">★</span>`;
+
+          if (!isUnlocked) {
+            previewDiv.innerHTML += '<div class="lock-icon">🔒</div>';
+          }
+
+          optionDiv.appendChild(previewDiv);
+
+          // Name
+          const nameDiv = document.createElement("div");
+          nameDiv.className = "frisbee-name";
+          nameDiv.textContent = design.name;
+          optionDiv.appendChild(nameDiv);
+
+          // Unlock requirement
+          const unlockDiv = document.createElement("div");
+          unlockDiv.className = "frisbee-unlock";
+          if (isUnlocked) {
+            unlockDiv.textContent = isSelected ? "✓ Selected" : "Unlocked";
+          } else {
+            unlockDiv.textContent = `Score ${design.unlockScore}+`;
+          }
+          optionDiv.appendChild(unlockDiv);
+
+          // Click handler
+          if (isUnlocked) {
+            optionDiv.addEventListener("click", () => {
+              selectedFrisbeeId = design.id;
+              saveSelectedFrisbee(design.id);
+
+              // Update visuals immediately
+              applyFrisbeeDesign(frisbeeMesh, design);
+              applyFrisbeeDesign(throwerSprite, design);
+
+              // Refresh selector to show new selection
+              openFrisbeeSelector();
+            });
+          }
+
+          optionsContainer.appendChild(optionDiv);
+        });
+
+        overlay.classList.add("visible");
+      }
+
+      // Close frisbee selector
+      function closeFrisbeeSelector() {
+        const overlay = document.getElementById("frisbee-overlay");
+        overlay.classList.remove("visible");
+      }
+
+      // Main run function
+      async function run(mode) {
+        lib.log("run() called. Mode: " + mode);
+        currentMode = mode;
+
+        // Show game parameters
+        lib.showGameParameters({
+          name: "Game Settings",
+          params: {
+            "Character Color": {
+              key: "gameConfig.characterColor",
+              type: "color",
+              onChange: (value) => {
+                window.gameConfig.characterColor = value;
+                // Recreate characters with new color
+                if (throwerSprite) scene.remove(throwerSprite);
+                if (receiverSprite) scene.remove(receiverSprite);
+                createCharacters();
+              },
+            },
+            "Frisbee Color": {
+              key: "gameConfig.frisbeeColor",
+              type: "color",
+              onChange: (value) => {
+                window.gameConfig.frisbeeColor = value;
+                if (frisbeeMesh) {
+                  frisbeeMesh.children[1].material.color.set(value);
+                }
+              },
+            },
+            "Field Color": {
+              key: "gameConfig.fieldColor",
+              type: "color",
+              onChange: (value) => {
+                window.gameConfig.fieldColor = value;
+                if (groundMesh) {
+                  groundMesh.material.color.set(value);
+                }
+              },
+            },
+            "Pole Color": {
+              key: "gameConfig.poleColor",
+              type: "color",
+              onChange: (value) => {
+                window.gameConfig.poleColor = value;
+                poles.forEach((p) => {
+                  p.mesh.material.color.set(value);
+                });
+              },
+            },
+            "Starting Difficulty": {
+              key: "gameConfig.startingDifficulty",
+              type: "slider",
+              min: 1,
+              max: 3,
+              step: 1,
+              onChange: (value) => {
+                window.gameConfig.startingDifficulty = value;
+                if (gameState.phase === "aiming") {
+                  generateObstacles();
+                }
+              },
+            },
+            "Pole Speed": {
+              key: "gameConfig.poleSpeedMultiplier",
+              type: "slider",
+              min: 0.5,
+              max: 2,
+              step: 0.1,
+              onChange: (value) => {
+                window.gameConfig.poleSpeedMultiplier = value;
+              },
+            },
+            "Base Distance": {
+              key: "gameConfig.baseDistance",
+              type: "slider",
+              min: 10,
+              max: 30,
+              step: 2,
+              onChange: (value) => {
+                window.gameConfig.baseDistance = value;
+              },
+            },
+            "Throw Power": {
+              key: "gameConfig.frisbeeSpeedMultiplier",
+              type: "slider",
+              min: 0.7,
+              max: 1.5,
+              step: 0.1,
+              onChange: (value) => {
+                window.gameConfig.frisbeeSpeedMultiplier = value;
+              },
+            },
+            "Catch Zone": {
+              key: "gameConfig.catchZoneSize",
+              type: "dropdown",
+              options: [
+                { label: "Small", value: "small" },
+                { label: "Medium", value: "medium" },
+                { label: "Large", value: "large" },
+              ],
+              onChange: (value) => {
+                window.gameConfig.catchZoneSize = value;
+              },
+            },
+            Gravity: {
+              key: "gameConfig.gravityMultiplier",
+              type: "slider",
+              min: 0.7,
+              max: 1.3,
+              step: 0.1,
+              onChange: (value) => {
+                window.gameConfig.gravityMultiplier = value;
+              },
+            },
+          },
+        });
+
+        // Preload assets
+        await preloadAssets();
+
+        // Load saved state
+        await loadSavedState();
+
+        // Initialize receiver position from config before creating scene
+        gameState.receiverPos.set(0, 0, window.gameConfig.baseDistance || 28);
+
+        // Initialize scene
+        initScene();
+
+        // Setup input
+        setupInput();
+
+        // Mode-specific setup
+        if (mode === "edit") {
+          setupEditMode();
+        } else {
+          setupPlayMode();
+        }
+
+        // Start game loop
+        requestAnimationFrame(gameLoop);
+      }
+    </script>
+  </body>
+</html>
