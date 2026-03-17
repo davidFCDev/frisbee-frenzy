@@ -251,6 +251,14 @@ function resizeRenderer(): void {
     const ctx = tc.getContext("2d");
     if (ctx) ctx.scale(dpr, dpr);
   }
+
+  // Adjust score badge position: taller than 2:3 → push down
+  const scoreWrapper = document.getElementById("score-wrapper");
+  if (scoreWrapper) {
+    const aspectRatio = w / h;
+    const is2by3 = Math.abs(aspectRatio - 2 / 3) < 0.02;
+    scoreWrapper.style.top = is2by3 || aspectRatio > 2 / 3 ? "18px" : "50px";
+  }
 }
 
 // ============================================================
