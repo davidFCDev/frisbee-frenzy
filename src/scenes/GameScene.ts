@@ -223,6 +223,72 @@ const DESIGN_W = GameSettings.canvas.width;
 const DESIGN_H = GameSettings.canvas.height;
 
 // ============================================================
+// EXTRA LIFE — check if player purchased the extra-life item
+// ============================================================
+
+function hasExtraLife(): boolean {
+  try {
+    if ((window as any).FarcadeSDK?.hasItem) {
+      return !!(window as any).FarcadeSDK.hasItem("extra-life");
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return false;
+}
+
+function hasRemixFrisbee(): boolean {
+  try {
+    if ((window as any).FarcadeSDK?.hasItem) {
+      return !!(window as any).FarcadeSDK.hasItem("remix-frisbee");
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return false;
+}
+
+/** Returns the frisbee base color — #B7FF00 if remix-frisbee purchased, else default purple */
+function getFrisbeeBaseColor(): number {
+  return hasRemixFrisbee() ? 0xb7ff00 : 0x6c63ff;
+}
+function getFrisbeeBaseColorHex(): string {
+  return hasRemixFrisbee() ? "#B7FF00" : "#6C63FF";
+}
+
+function getMaxLives(): number {
+  return hasExtraLife() ? 4 : 3;
+}
+
+/** Show/hide the 4th life icon and refresh the lives display */
+function applyExtraLifeUI(): void {
+  const life4 = document.getElementById("life-4");
+  if (life4) {
+    life4.style.display = hasExtraLife() ? "" : "none";
+  }
+  const maxLives = getMaxLives();
+  if (gameState && gameState.lives < maxLives) {
+    gameState.lives = maxLives;
+  }
+  updateLivesDisplay();
+}
+
+/** Update frisbee selector button color if remix-frisbee is owned */
+function applyRemixFrisbeeUI(): void {
+  const btn = document.getElementById("frisbee-selector-btn");
+  if (btn) {
+    if (hasRemixFrisbee()) {
+      btn.style.background =
+        "linear-gradient(135deg, #B7FF00 0%, #8BC34A 100%)";
+      btn.style.boxShadow = "0 4px 12px rgba(183, 255, 0, 0.5)";
+    } else {
+      btn.style.background = "";
+      btn.style.boxShadow = "";
+    }
+  }
+}
+
+// ============================================================
 // RESIZE HANDLER — keeps renderer & camera matched to container
 // ============================================================
 
@@ -1001,16 +1067,17 @@ function createWallStripeTexture(w: number, h: number): THREE.CanvasTexture {
 }
 
 function createFrisbeeStarTexture(): THREE.CanvasTexture {
+  const baseHex = getFrisbeeBaseColorHex();
   const texC = document.createElement("canvas");
   texC.width = 256;
   texC.height = 256;
   const tx = texC.getContext("2d")!;
   const cx = 128,
     cy = 128;
-  // Solid purple background
+  // Solid background
   tx.beginPath();
   tx.arc(cx, cy, 126, 0, Math.PI * 2);
-  tx.fillStyle = "#6C63FF";
+  tx.fillStyle = baseHex;
   tx.fill();
   // Yellow ring border
   tx.beginPath();
@@ -1048,11 +1115,12 @@ function createCharacters(): void {
   // THROWER: Floating Frisbee with glow
   const throwerGroup = new THREE.Group();
 
-  // Multi-material disc: side=purple, top/bottom=star texture (no z-fighting)
+  // Multi-material disc: side=color, top/bottom=star texture (no z-fighting)
   const discGeo = new THREE.CylinderGeometry(0.95, 0.95, 0.1, 32);
+  const throwerBaseColor = getFrisbeeBaseColor();
   const sideMat = new THREE.MeshLambertMaterial({
-    color: 0x6c63ff,
-    emissive: 0x6c63ff,
+    color: throwerBaseColor,
+    emissive: throwerBaseColor,
     emissiveIntensity: 0.15,
   });
   const starTex = createFrisbeeStarTexture();
@@ -1072,10 +1140,10 @@ function createCharacters(): void {
   rim.rotation.x = Math.PI / 2;
   throwerGroup.add(rim);
 
-  // Soft glow ring — purple
+  // Soft glow ring
   const glowGeo = new THREE.TorusGeometry(1.06, 0.08, 8, 24);
   const glowMat = new THREE.MeshBasicMaterial({
-    color: 0x6c63ff,
+    color: throwerBaseColor,
     transparent: true,
     opacity: 0.2,
   });
@@ -1148,11 +1216,12 @@ function createCharacters(): void {
 function createFrisbee(): void {
   const frisbeeGroup = new THREE.Group();
 
-  // Multi-material disc: side=purple, top/bottom=star texture (no z-fighting)
+  // Multi-material disc: side=color, top/bottom=star texture (no z-fighting)
   const discGeo = new THREE.CylinderGeometry(0.95, 0.95, 0.1, 32);
+  const frisbeeSideColor = getFrisbeeBaseColor();
   const sideMat = new THREE.MeshLambertMaterial({
-    color: 0x6c63ff,
-    emissive: 0x6c63ff,
+    color: frisbeeSideColor,
+    emissive: frisbeeSideColor,
     emissiveIntensity: 0.15,
   });
   const starTex = createFrisbeeStarTexture();
@@ -2310,7 +2379,8 @@ function handleCollision(collidedObstacle: PoleData | WallData): void {
 }
 
 function updateLivesDisplay(): void {
-  for (let i = 1; i <= 3; i++) {
+  const maxLives = getMaxLives();
+  for (let i = 1; i <= maxLives; i++) {
     const li = document.getElementById(`life-${i}`);
     if (li) {
       if (i > gameState.lives) li.classList.add("lost");
@@ -2490,10 +2560,10 @@ function restartGame(): void {
 
   gameState.score = 0;
   gameState.combo = 1;
-  gameState.lives = 3;
+  gameState.lives = getMaxLives();
   gameState.multiplier = 1;
   gameState.phase = "aiming";
-  updateLivesDisplay();
+  applyExtraLifeUI();
   updateMultiplierDisplay();
 
   gameState.throwerPos.set(0, 0, 0);
@@ -2653,8 +2723,7 @@ function setupInput(): void {
       gameState.dragCurrent = { x: touch.clientX, y: touch.clientY };
       if (tutorialMessage) tutorialMessage.classList.remove("visible");
     }
-    if (audioContext && audioContext.state === "suspended")
-      audioContext.resume();
+    resumeAudioIfSuspended();
   });
 
   canvas.addEventListener("touchmove", (e) => {
@@ -2701,7 +2770,7 @@ function setupInput(): void {
       if (tutorialMessage) tutorialMessage.classList.remove("visible");
     }
     if (audioContext && audioContext.state === "suspended")
-      audioContext.resume();
+      resumeAudioIfSuspended();
   });
 
   canvas.addEventListener("mousemove", (e) => {
@@ -2892,7 +2961,30 @@ function setupEditMode(): void {
 
 function setupPlayMode(): void {
   document.getElementById("edit-indicator")!.classList.remove("visible");
+  // Try to start music; if AudioContext is suspended (common on mobile),
+  // resumeAudioIfSuspended() on first touch will restart it properly.
   startMusic();
+}
+
+/** Resume a suspended AudioContext and restart music cleanly to avoid stutter */
+function resumeAudioIfSuspended(): void {
+  if (!audioContext || audioContext.state !== "suspended") return;
+  audioContext
+    .resume()
+    .then(() => {
+      // Music source created while suspended won't produce audio.
+      // Restart it now that the context is running.
+      if (!musicSource || musicSource.context.state === "closed") {
+        startMusic();
+      } else {
+        // If a source exists but was created while suspended, it may be
+        // out of sync. Restart for a clean playback.
+        startMusic();
+      }
+    })
+    .catch(() => {
+      /* ignore */
+    });
 }
 
 // ============================================================
@@ -3087,7 +3179,7 @@ export async function run(mode: string, audio?: PreloadedAudio): Promise<void> {
     score: 0,
     bestScore: 0,
     combo: 1,
-    lives: 3,
+    lives: 3, // will be updated to 4 via applyExtraLifeUI if purchased
     throwerPos: new THREE.Vector3(0, 0, 0),
     receiverPos: new THREE.Vector3(0, 0, window.gameConfig.baseDistance || 28),
     frisbeePos: new THREE.Vector3(0, 2.0, 0),
@@ -3124,6 +3216,29 @@ export async function run(mode: string, audio?: PreloadedAudio): Promise<void> {
 
   initScene();
   setupInput();
+
+  // Apply extra life if purchased
+  applyExtraLifeUI();
+
+  // Apply remix frisbee color if purchased
+  applyRemixFrisbeeUI();
+
+  // SDK: listen for purchase_complete to grant items dynamically
+  try {
+    if ((window as any).FarcadeSDK?.on) {
+      (window as any).FarcadeSDK.on(
+        "purchase_complete",
+        (data: { success: boolean }) => {
+          if (data.success) {
+            applyExtraLifeUI();
+            applyRemixFrisbeeUI();
+          }
+        },
+      );
+    }
+  } catch (_) {
+    /* ignore */
+  }
 
   // SDK: register onPlayAgain handler
   try {

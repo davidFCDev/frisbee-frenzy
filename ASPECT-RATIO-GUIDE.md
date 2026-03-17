@@ -46,11 +46,11 @@ function resizeRenderer(): void {
 
 ### Lógica de decisión
 
-| Condición | Aspect Ratio | `top` aplicado | Ejemplo |
-|-----------|-------------|----------------|---------|
-| Exactamente 2:3 (±0.02) | ~0.667 | `18px` | 720×1080 |
-| Más ancho que 2:3 | > 0.667 | `18px` | Landscape, tablets |
-| Más alto que 2:3 | < 0.647 | `50px` | 9:16, 9:19.5 (iPhone) |
+| Condición               | Aspect Ratio | `top` aplicado | Ejemplo               |
+| ----------------------- | ------------ | -------------- | --------------------- |
+| Exactamente 2:3 (±0.02) | ~0.667       | `18px`         | 720×1080              |
+| Más ancho que 2:3       | > 0.667      | `18px`         | Landscape, tablets    |
+| Más alto que 2:3        | < 0.647      | `50px`         | 9:16, 9:19.5 (iPhone) |
 
 La tolerancia `0.02` evita falsos positivos por redondeo de píxeles.
 
@@ -75,7 +75,7 @@ Busca tu función de resize (normalmente `resizeRenderer`, `onResize`, o el list
 
 ```typescript
 // Dentro de tu función de resize
-const w = container.clientWidth;  // o window.innerWidth
+const w = container.clientWidth; // o window.innerWidth
 const h = container.clientHeight; // o window.innerHeight
 
 const elemento = document.getElementById("mi-elemento-ui");
@@ -109,20 +109,30 @@ Si tienes varios elementos que ajustar, crea una función helper:
 ```typescript
 interface ResponsiveUIRule {
   elementId: string;
-  property: string;      // "top", "bottom", "fontSize", etc.
-  standard: string;      // valor para 2:3
-  tall: string;          // valor para pantallas más altas
+  property: string; // "top", "bottom", "fontSize", etc.
+  standard: string; // valor para 2:3
+  tall: string; // valor para pantallas más altas
 }
 
 const uiRules: ResponsiveUIRule[] = [
-  { elementId: "score-wrapper", property: "top", standard: "18px", tall: "50px" },
-  { elementId: "lives-display",  property: "top", standard: "60px", tall: "92px" },
-  { elementId: "combo-display",  property: "top", standard: "30%",  tall: "35%" },
+  {
+    elementId: "score-wrapper",
+    property: "top",
+    standard: "18px",
+    tall: "50px",
+  },
+  {
+    elementId: "lives-display",
+    property: "top",
+    standard: "60px",
+    tall: "92px",
+  },
+  { elementId: "combo-display", property: "top", standard: "30%", tall: "35%" },
 ];
 
 function adjustUIForAspectRatio(w: number, h: number): void {
   const aspectRatio = w / h;
-  const isTall = aspectRatio < (2 / 3 - 0.02);
+  const isTall = aspectRatio < 2 / 3 - 0.02;
 
   for (const rule of uiRules) {
     const el = document.getElementById(rule.elementId);
@@ -135,14 +145,14 @@ function adjustUIForAspectRatio(w: number, h: number): void {
 
 ## Ratios de referencia comunes
 
-| Dispositivo | Ratio (w/h) | Decimal | Clasificación |
-|-------------|------------|---------|---------------|
-| Remix estándar | 2:3 | 0.667 | Base |
-| iPhone 8 | 9:16 | 0.5625 | Más alto |
-| iPhone 14 | 9:19.5 | 0.462 | Mucho más alto |
-| iPhone 14 Pro Max | 9:19.5 | 0.462 | Mucho más alto |
-| iPad | 3:4 | 0.75 | Más ancho |
-| Android típico | 9:20 | 0.45 | Mucho más alto |
+| Dispositivo       | Ratio (w/h) | Decimal | Clasificación  |
+| ----------------- | ----------- | ------- | -------------- |
+| Remix estándar    | 2:3         | 0.667   | Base           |
+| iPhone 8          | 9:16        | 0.5625  | Más alto       |
+| iPhone 14         | 9:19.5      | 0.462   | Mucho más alto |
+| iPhone 14 Pro Max | 9:19.5      | 0.462   | Mucho más alto |
+| iPad              | 3:4         | 0.75    | Más ancho      |
+| Android típico    | 9:20        | 0.45    | Mucho más alto |
 
 ## Resumen
 
