@@ -204,7 +204,6 @@ let isMuted = false;
 
 // Music tracks - alternate between two songs
 const MUSIC_URLS = [
-  "https://remix.gg/blob/bc448687-3c6a-4d23-8ae6-cb80793ea667/music2-ifVBYVlyPa-wpGlk7Na9R0RpIhHPZc1US7SdBQkjy.mp3?c6RY",
   "https://remix.gg/blob/bc448687-3c6a-4d23-8ae6-cb80793ea667/music1-rTr7oTZyHa-wWvN1d7TczfkXTFX3G3KelKgp1qZsO.mp3?jpHA",
 ];
 let musicBuffers: AudioBuffer[] = [];
@@ -222,21 +221,6 @@ let animFrameId = 0;
 const DESIGN_W = GameSettings.canvas.width;
 const DESIGN_H = GameSettings.canvas.height;
 
-// ============================================================
-// EXTRA LIFE — check if player purchased the extra-life item
-// ============================================================
-
-function hasExtraLife(): boolean {
-  try {
-    if ((window as any).FarcadeSDK?.hasItem) {
-      return !!(window as any).FarcadeSDK.hasItem("extra-life");
-    }
-  } catch (_) {
-    /* ignore */
-  }
-  return false;
-}
-
 function hasRemixFrisbee(): boolean {
   try {
     if ((window as any).FarcadeSDK?.hasItem) {
@@ -248,29 +232,11 @@ function hasRemixFrisbee(): boolean {
   return false;
 }
 
-/** Returns the frisbee base color — #B7FF00 if remix-frisbee purchased, else default purple */
 function getFrisbeeBaseColor(): number {
   return hasRemixFrisbee() ? 0xb7ff00 : 0x6c63ff;
 }
 function getFrisbeeBaseColorHex(): string {
   return hasRemixFrisbee() ? "#B7FF00" : "#6C63FF";
-}
-
-function getMaxLives(): number {
-  return hasExtraLife() ? 4 : 3;
-}
-
-/** Show/hide the 4th life icon and refresh the lives display */
-function applyExtraLifeUI(): void {
-  const life4 = document.getElementById("life-4");
-  if (life4) {
-    life4.style.display = hasExtraLife() ? "" : "none";
-  }
-  const maxLives = getMaxLives();
-  if (gameState && gameState.lives < maxLives) {
-    gameState.lives = maxLives;
-  }
-  updateLivesDisplay();
 }
 
 /** Update frisbee selector button color if remix-frisbee is owned */
@@ -372,26 +338,34 @@ function startMusic(): void {
   }
   if (!audioContext || musicBuffers.length === 0) return;
   if (isMuted) return;
-  if (audioContext.state === "suspended") audioContext.resume();
 
-  const buffer = musicBuffers[currentMusicTrack % musicBuffers.length];
-  const source = audioContext.createBufferSource();
-  const gainNode = audioContext.createGain();
-  source.buffer = buffer;
-  source.loop = false;
-  gainNode.gain.value = 0.3;
-  source.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  source.start(0);
-  musicSource = source;
-
-  // When this track ends, play the other one
-  source.onended = () => {
-    if (musicSource === source) {
-      currentMusicTrack++;
-      startMusic();
-    }
+  const doStart = () => {
+    const buffer = musicBuffers[currentMusicTrack % musicBuffers.length];
+    const source = audioContext!.createBufferSource();
+    const gainNode = audioContext!.createGain();
+    source.buffer = buffer;
+    source.loop = false;
+    gainNode.gain.value = 0.3;
+    source.connect(gainNode);
+    gainNode.connect(audioContext!.destination);
+    source.start(0);
+    musicSource = source;
+    source.onended = () => {
+      if (musicSource === source) {
+        currentMusicTrack++;
+        startMusic();
+      }
+    };
   };
+
+  if (audioContext.state === "suspended") {
+    audioContext
+      .resume()
+      .then(doStart)
+      .catch(() => {});
+  } else {
+    doStart();
+  }
 }
 
 function stopMusic(): void {
@@ -2379,8 +2353,7 @@ function handleCollision(collidedObstacle: PoleData | WallData): void {
 }
 
 function updateLivesDisplay(): void {
-  const maxLives = getMaxLives();
-  for (let i = 1; i <= maxLives; i++) {
+  for (let i = 1; i <= 3; i++) {
     const li = document.getElementById(`life-${i}`);
     if (li) {
       if (i > gameState.lives) li.classList.add("lost");
@@ -2560,10 +2533,10 @@ function restartGame(): void {
 
   gameState.score = 0;
   gameState.combo = 1;
-  gameState.lives = getMaxLives();
+  gameState.lives = 3;
   gameState.multiplier = 1;
   gameState.phase = "aiming";
-  applyExtraLifeUI();
+  updateLivesDisplay();
   updateMultiplierDisplay();
 
   gameState.throwerPos.set(0, 0, 0);
@@ -3056,7 +3029,7 @@ function gameLoop(timestamp: number): void {
         const ox = origPos[i].x;
         const oy = origPos[i].y;
         const halfW = flagGeo.parameters.width / 2;
-        const nx = (ox + halfW) / (halfW * 2);
+        const nx = Math.max(0, Math.min(1, (ox + halfW) / (halfW * 2)));
 
         const pw = Math.sin(time * 3 + ox * 2.5) * 0.25;
         const sw = Math.sin(time * 5 + ox * 4 + oy) * 0.15;
@@ -3179,7 +3152,7 @@ export async function run(mode: string, audio?: PreloadedAudio): Promise<void> {
     score: 0,
     bestScore: 0,
     combo: 1,
-    lives: 3, // will be updated to 4 via applyExtraLifeUI if purchased
+    lives: 3,
     throwerPos: new THREE.Vector3(0, 0, 0),
     receiverPos: new THREE.Vector3(0, 0, window.gameConfig.baseDistance || 28),
     frisbeePos: new THREE.Vector3(0, 2.0, 0),
@@ -3217,9 +3190,6 @@ export async function run(mode: string, audio?: PreloadedAudio): Promise<void> {
   initScene();
   setupInput();
 
-  // Apply extra life if purchased
-  applyExtraLifeUI();
-
   // Apply remix frisbee color if purchased
   applyRemixFrisbeeUI();
 
@@ -3230,7 +3200,6 @@ export async function run(mode: string, audio?: PreloadedAudio): Promise<void> {
         "purchase_complete",
         (data: { success: boolean }) => {
           if (data.success) {
-            applyExtraLifeUI();
             applyRemixFrisbeeUI();
           }
         },

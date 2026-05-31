@@ -1,26 +1,65 @@
 ---
 name: remix-agent-publish
-description: Build Remix games for remix.gg with the server-api v1 agents REST API and Farcade game SDK requirements.
+description: Build and publish Remix games with the current Remix toolchain. Use when work touches the official Remix CLI, MCP server, REST publishing APIs, or the @remix-gg/sdk game runtime.
 metadata:
   tags: remix, games, api, agent, publishing
 ---
 
 ## When to use
 
-Use this skill when users want to automate game publishing on Remix (`remix.gg`) from AI agents or external services.
+Use this skill when users want to create, upload, validate, or inspect Remix games from an agent, terminal workflow, or external service.
 
 ## How to use
 
-- Read [API Authentication](api/authentication.md) first.
+- Prefer the `remix-cli` skill for terminal-based auth, config, upload, and analytics flows.
+- Use the `remix-mcp-quickstart` skill when the user is working through an MCP client.
+- Read the `remix-api-auth` skill for authentication setup.
 - Fetch OpenAPI spec at `https://api.remix.gg/docs/json` before generating API calls.
-- Use [API Reference](api/reference.md) for workflow guardrails (not as the method/path source of truth).
-- For Phaser builds, use [Phaser 2D Arcade Companion Skill](frameworks/phaser-2d-arcade/SKILL.md).
-- For lightweight 3D builds, use [Three.js Lite Companion Skill](frameworks/threejs-lite/SKILL.md).
-- Use [Game SDK Reference](references/game-sdk.md) when generating or fixing game code.
-- Apply [Submission Rules](rules/submission-requirements.md) for validation requirements.
-- Follow [Game Creation Best Practices](rules/game-creation-best-practices.md) for mobile-first and SDK-safe implementation.
-- Use [REST Snippets](snippets/rest-client.md) for client integration examples.
-- Use [MCP Quickstart](mcp/quickstart.md) for assistant workflows.
+- Use the `remix-api-reference` skill for workflow guardrails (not as the method/path source of truth).
+- For Phaser builds, use the `phaser-2d-arcade` skill.
+- For lightweight 3D builds, use the `threejs-lite` skill.
+- Use the `remix-game-sdk` skill when generating or fixing game code.
+- Apply the `remix-submission-rules` skill for validation requirements.
+- Follow the `remix-game-best-practices` skill for mobile-first and SDK-safe implementation.
+- Use the `remix-rest-snippets` skill for client integration examples.
+- Use the `remix-mcp-quickstart` skill for assistant workflows.
+
+## Available Workflows
+
+- `remix-game-creation` - Create a new game draft
+- `remix-upload-game` - Upload version code
+- `remix-add-image` - Generate and add images to a game
+- `remix-add-sprite` - Generate and add sprites to a game
+- `remix-shop-items` - Create and manage in-game shop items
+- `remix-multiplayer` - Enable multiplayer support
+- `remix-save-game` - Add save/load game state
+- `remix-upload-asset` - Upload images, audio, or 3D models as hosted game assets
+
+## Game Settings
+
+Current config files:
+
+- task context or prior tool results first
+- `.remix-cli.json` for project-local config (`gameId`, `versionId`)
+- legacy `.remix-mcp.json` for older projects
+- `~/.config/remix/credentials.json` for CLI credentials that MCP can also reuse
+
+Reuse existing IDs instead of inventing new ones or blindly calling `createGame`. Some upstream MCP docs still mention `.remix-settings.json`; prefer the current packaged MCP skills and package source when those conflict.
+
+## Inline Validation
+
+Before uploading code, run through the validation checklist in the `remix-submission-rules` skill to catch blockers early.
+
+## REST API Workflow
+
+All game management is done through REST API calls to `https://api.remix.gg`. The general pattern is:
+
+1. Fetch the OpenAPI spec at `https://api.remix.gg/docs/json`
+2. Use the spec to determine exact methods, paths, and schemas
+3. Make authenticated REST calls with your API key
+4. Check responses for success/error envelopes
+
+See the `remix-rest-snippets` and `remix-api-reference` skills for details.
 
 ## Source of truth
 
@@ -28,8 +67,9 @@ When docs and runtime behavior disagree, defer to the server API source and Open
 
 - `https://api.remix.gg/docs`
 - `https://api.remix.gg/docs/json`
-- `apps/server-api/routes/agents.ts`
-- `apps/server-api/lib/api-auth.ts`
-- `apps/server-api/lib/agent-api.ts`
-- `apps/server-api/app/[...path]/route.ts`
-- `packages/game-sdk/src/index.ts`
+- `packages/cli/src/index.ts`
+- `packages/mcp/src/core/tool-defs.ts`
+- `packages/mcp/skills/SKILL.md`
+- `packages/mcp/skills/workflows/*.md`
+- `apps/server-api/routes/device-auth.ts`
+- `@remix-gg/sdk` (NPM package)
